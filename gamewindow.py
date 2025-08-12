@@ -13,4 +13,4 @@ while running:
     screen.fill(("white"))
     pygame.display.flip()
 
-pygame.quit()
+pygame.quit
