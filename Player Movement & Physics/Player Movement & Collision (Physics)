@@ -2,24 +2,30 @@ import pygame
 import sys
 import os
 
-# Initialize Pygame
 pygame.init()
 
 # Constants
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
 DOUBLE_JUMP_STRENGTH = 8
 
-# Colors
-WHITE = (255, 255, 255)
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Load Sprites
-standing_sprite = pygame.image.load('standing.png')
-moving_forward_sprite = pygame.image.load('moving_forward.png')
-moving_backward_sprite = pygame.image.load('moving_backward.png')
-jumping_sprite = pygame.image.load('jumping.png')
+# Load Sprites with correct paths
+try:
+    standing_sprite = pygame.image.load(os.path.join(script_dir, 'm.idle_sprite.png'))
+    moving_forward_sprite = pygame.image.load(os.path.join(script_dir, 'm.run_sprite.png'))
+    moving_backward_sprite = pygame.image.load(os.path.join(script_dir, 'm.run_sprite.png'))
+    print("All images loaded successfully!")
+except pygame.error as e:
+    print(f"Error loading images: {e}")
+    print(f"Looking in directory: {script_dir}")
+    print("Make sure the image files are in the same folder as this script")
+    sys.exit()
+
 
 # Player Class
 class Player:
@@ -64,6 +70,7 @@ class Player:
 # Main Game Loop
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption("Player Movement & Physics")
     clock = pygame.time.Clock()
     player = Player()
 
@@ -87,11 +94,12 @@ def main():
         player.update()
 
         # Clear screen
-        screen.fill(WHITE)
+        screen.fill("white")
         # Draw player
         screen.blit(player.image, player.rect)
         pygame.display.flip()
         clock.tick(60)
 
+  
 if __name__ == "__main__":
     main()
