@@ -4,6 +4,7 @@ import random, time
 #=========================CLASS=====================================#
 class generateworld:
     def __init__(self):
+
         pygame.init()
         self.screen = pygame.display.set_mode((1920, 1080))
         pygame.display.set_caption("World Gen Test")
@@ -28,10 +29,12 @@ class generateworld:
         self.gen_world()  
 
     def set_seed(self):
+
         self.seed = random.randint(0, 10**9)
         print(self.seed)
 
     def gen_world(self):
+
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
 
@@ -40,12 +43,14 @@ class generateworld:
         rows = screen_height // self.block_height
 
         for x in range(cols):
+
             noise_value = noise.noise2(x * 0.1, 0)
             base = rows // 4
             height = int((noise_value + 1) * 5 + base)
             height = max(1, min(rows, height))
 
             for y in range(height):
+
                 y_px = screen_height - (y + 1) * self.block_height
 
                 if y == height - 1:
@@ -64,41 +69,54 @@ class generateworld:
 
     # regenerate with new random seed
     def newseed(self):
+
         self.seed = random.randint(0, 10**9)
         print(self.seed)
         self.gen_world()
 
     def run(self):
+
         running = True
         while running:
             for event in pygame.event.get():
+
                 if event.type == pygame.QUIT:
                     running = False
+
                 if event.type == pygame.KEYDOWN:
+                
                     if event.key == pygame.K_ESCAPE:
                         running = False
                         pygame.quit()
                     if event.key == pygame.K_r:
                         self.newseed()
+
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    if event.button == 1:  # left click destroy block
+                    mouse_position = pygame.mouse.get_pos()
+
+                    if event.button == 1: 
                         for block in self.blocks:
-                            if block["rect"].collidepoint(mouse_pos):
+                            if block["rect"].collidepoint(mouse_position):
                                 print("Destroyed", block["type"])
                                 self.blocks.remove(block)
-                                break
-                    elif event.button == 3:  # right click place dirt
-                        x, y = mouse_pos
-                        rect = self.blocklibrary['dirt'].get_rect(topleft=(x//32*32, y//32*32))
+                                
+                                
+                    elif event.button == 3: 
+                        x, y = mouse_position
+                        col = x // self.block_width
+                        row = (self.screen.get_height() - y) // self.block_height  
+                        y_px = self.screen.get_height() - (row + 1) * self.block_height
+                        rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
                         self.blocks.append({
                             "type": "dirt",
                             "texture": self.blocklibrary['dirt'],
                             "rect": rect
                         })
 
-            # draw everything
-            self.screen.fill((135, 206, 235))  # sky
+                
+
+            
+            self.screen.fill((135, 206, 235))
             for block in self.blocks:
                 self.screen.blit(block["texture"], block["rect"])
             pygame.display.flip()

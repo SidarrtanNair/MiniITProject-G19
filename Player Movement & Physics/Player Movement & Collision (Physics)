@@ -92,10 +92,7 @@ def main():
             player.jump()
 
         player.update()
-
-        # Clear screen
         screen.fill("white")
-        # Draw player
         screen.blit(player.image, player.rect)
         pygame.display.flip()
         clock.tick(60)
