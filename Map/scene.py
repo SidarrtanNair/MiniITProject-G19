@@ -5,16 +5,15 @@ import random, time
 class generateworld:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((800, 600))
+        self.screen = pygame.display.set_mode((1920, 1080))
         pygame.display.set_caption("World Gen Test")
         self.clock = pygame.time.Clock()
 
-
+        
         self.blocklibrary = {
             'dirt': pygame.Surface((32, 32)),
             'grass': pygame.Surface((32, 32)),
             'stone': pygame.Surface((32, 32))
-
         }
         self.blocklibrary['dirt'].fill((139, 69, 19))
         self.blocklibrary['grass'].fill((0, 200, 0)) #to be replaced with textures
@@ -23,14 +22,14 @@ class generateworld:
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
 
-        self.blocks = []
+        self.blocks = []  
         self.seed = None
         self.set_seed()
-        self.gen_world()
+        self.gen_world()  
 
     def set_seed(self):
-            self.seed = random.randint(0, 10**9)
-            print(self.seed)
+        self.seed = random.randint(0, 10**9)
+        print(self.seed)
 
     def gen_world(self):
         self.blocks.clear()
@@ -50,21 +49,24 @@ class generateworld:
                 y_px = screen_height - (y + 1) * self.block_height
 
                 if y == height - 1:
-                    texture = self.blocklibrary['grass']
+                    blocktype = "grass"
                 elif y < height - 5:
-                    texture = self.blocklibrary['stone']
+                    blocktype = "stone"
                 else:
-                    texture = self.blocklibrary['dirt']
+                    blocktype = "dirt"
 
-                rectangle = texture.get_rect(topleft=(x * self.block_width, y_px))
-                self.blocks.append((texture, rectangle))
+                rect = self.blocklibrary[blocktype].get_rect(topleft=(x * self.block_width, y_px))
+                self.blocks.append({
+                    "type": blocktype,
+                    "texture": self.blocklibrary[blocktype],
+                    "rect": rect
+                })
+
+    # regenerate with new random seed
     def newseed(self):
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    self.seed = random.randint(0, 10**9)
-                    print( self.seed)
-                    self.gen_world()
+        self.seed = random.randint(0, 10**9)
+        print(self.seed)
+        self.gen_world()
 
     def run(self):
         running = True
@@ -72,12 +74,35 @@ class generateworld:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-            self.screen.fill((135, 206, 235))
-            for texture, rect in self.blocks:
-                self.screen.blit(texture, rect)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                        pygame.quit()
+                    if event.key == pygame.K_r:
+                        self.newseed()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if event.button == 1:  # left click destroy block
+                        for block in self.blocks:
+                            if block["rect"].collidepoint(mouse_pos):
+                                print("Destroyed", block["type"])
+                                self.blocks.remove(block)
+                                break
+                    elif event.button == 3:  # right click place dirt
+                        x, y = mouse_pos
+                        rect = self.blocklibrary['dirt'].get_rect(topleft=(x//32*32, y//32*32))
+                        self.blocks.append({
+                            "type": "dirt",
+                            "texture": self.blocklibrary['dirt'],
+                            "rect": rect
+                        })
+
+            # draw everything
+            self.screen.fill((135, 206, 235))  # sky
+            for block in self.blocks:
+                self.screen.blit(block["texture"], block["rect"])
             pygame.display.flip()
             self.clock.tick(60)
-            self.newseed()
         pygame.quit()
 
 if __name__ == "__main__":
