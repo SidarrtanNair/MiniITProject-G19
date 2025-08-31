@@ -6,7 +6,9 @@ class generateworld:
     def __init__(self):
 
         pygame.init()
-        self.screen = pygame.display.set_mode((1920, 1080))
+        size = pygame.display.Info()
+        self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
+
         pygame.display.set_caption("World Gen Test")
         self.clock = pygame.time.Clock()
         self.background = pygame.image.load("Map\BACKGROUND\hCUwLQ.png").convert()
