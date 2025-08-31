@@ -9,16 +9,27 @@ class generateworld:
         self.screen = pygame.display.set_mode((1920, 1080))
         pygame.display.set_caption("World Gen Test")
         self.clock = pygame.time.Clock()
+        self.background = pygame.image.load("Map\BACKGROUND\hCUwLQ.png").convert()
+        self.background = pygame.transform.scale(self.background, self.screen.get_size())
+
 
         
         self.blocklibrary = {
-            'dirt': pygame.Surface((32, 32)),
-            'grass': pygame.Surface((32, 32)),
-            'stone': pygame.Surface((32, 32))
+            'dirt': pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\dirt_block_resize.png").convert(), (32, 32)),
+            
+            'grass': pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\grassdirt_block_resize.png").convert(), (32, 32)),
+
+            'stone': pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\stone_block_resize.png").convert(), (32, 32)),
+
+            'bush':pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\grass_resize.png").convert_alpha(), (32, 32)),
         }
-        self.blocklibrary['dirt'].fill((139, 69, 19))
-        self.blocklibrary['grass'].fill((0, 200, 0)) #to be replaced with textures
-        self.blocklibrary['stone'].fill((100, 100, 100))
+        
+       
+    
 
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
@@ -54,6 +65,8 @@ class generateworld:
                 y_px = screen_height - (y + 1) * self.block_height
 
                 if y == height - 1:
+                    blocktype = "bush"
+                elif y == height -2:
                     blocktype = "grass"
                 elif y < height - 5:
                     blocktype = "stone"
@@ -66,7 +79,14 @@ class generateworld:
                     "texture": self.blocklibrary[blocktype],
                     "rect": rect
                 })
-
+            #if random.random() < 0.7:  (for trees later)
+                   # y_px = screen_height - height * self.block_height - self.block_height
+                    #rect = self.blocklibrary['bush'].get_rect(topleft=(x * self.block_width, y_px))
+                    #self.blocks.append({
+                        #"type": "bush",
+                        #"texture": self.blocklibrary['bush'],
+                        #"rect": rect
+                    #})
     # regenerate with new random seed
     def newseed(self):
 
@@ -116,7 +136,7 @@ class generateworld:
                 
 
             
-            self.screen.fill((135, 206, 235))
+            self.screen.blit(self.background,(0,0))
             for block in self.blocks:
                 self.screen.blit(block["texture"], block["rect"])
             pygame.display.flip()
