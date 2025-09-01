@@ -23,6 +23,9 @@ class generateworld:
             'grass': pygame.transform.scale(
                 pygame.image.load("Map\BLOCK\grassdirt_block_resize.png").convert(), (32, 32)),
 
+            'dirtstone': pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\dirtstone_block_gradient_1_resize.png").convert(),(32,32)),
+
             'stone': pygame.transform.scale(
                 pygame.image.load("Map\BLOCK\stone_block_resize.png").convert(), (32, 32)),
 
@@ -70,7 +73,9 @@ class generateworld:
                     blocktype = "bush"
                 elif y == height -2:
                     blocktype = "grass"
-                elif y < height - 5:
+                elif y == height - 6 :
+                    blocktype = "dirtstone"
+                elif y < height - 6:
                     blocktype = "stone"
                 else:
                     blocktype = "dirt"
