@@ -12,7 +12,7 @@ font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
 
 # background (the 4th time of doing this)
-background = pygame.image.load("momentsbeforedisaster.png")
+background = pygame.image.load("something\Michael's Work for Python\momentsbeforedisaster.png")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 STATE = "game"
