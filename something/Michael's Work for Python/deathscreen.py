@@ -1,4 +1,4 @@
-# this is the code for the death screen
+# so this shall be the death screen
 import pygame
 pygame.init()
 

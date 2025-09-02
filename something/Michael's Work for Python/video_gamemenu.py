@@ -38,7 +38,7 @@ def draw_game():
 
 # okay this is just the buttons this took forever good lord
 def draw_menu():
-    pygame.draw.rect(screen, 'purple', [0, HEIGHT//6, WIDTH//4, HEIGHT//1])
+    pygame.draw.rect(screen, 'purple', [0, HEIGHT//6, WIDTH//4, HEIGHT//1.25])
 
     new_game_btn = pygame.draw.rect(screen, 'light gray', [0, HEIGHT//6+20, WIDTH//4, 50], 0, 5)
     pygame.draw.rect(screen, 'dark gray', [0, HEIGHT//6+20, WIDTH//4, 50], 5, 5)
