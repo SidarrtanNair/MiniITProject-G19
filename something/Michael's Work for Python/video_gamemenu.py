@@ -10,10 +10,11 @@ fps = 60
 timer = pygame.time.Clock()
 font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
-
+display_info = pygame.display.Info()
+print(display_info)
 # background (the 4th time of doing this)
-background = pygame.image.load("momentsbeforedisaster.png")
-background = pygame.transform.scale(background, (WIDTH, HEIGHT))
+background = pygame.image.load("black_background_game_over_hd_game_over.jpg")
+background = pygame.transform.scale(background, (WIDTH, HEIGHT))    
 
 STATE = "game"
 
