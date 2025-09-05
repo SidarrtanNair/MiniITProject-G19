@@ -14,7 +14,7 @@ pygame.display.set_caption('2D Character Animation with Movement')
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'male_spriteV5_flipped.png')).convert_alpha()
+sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'male_spriteV7_flipped.png')).convert_alpha()
 sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
 
 BLACK = (0, 0, 0)
@@ -22,7 +22,7 @@ BG = (50, 50, 50)
 FPS = 60
 
 # Animation frames count (adjust if they differ)
-animation_steps = [6, 8, 0, 0]  # e.g. idle, walk right, jump, etc.
+animation_steps = [6, 8, 6, 0]  # e.g. idle, walk right, jump, etc.
 
 # Load animation s
 animation_list = []
@@ -30,7 +30,7 @@ step_counter = 0
 for animation_len in animation_steps:
     temp_img_list = []
     for _ in range(animation_len): 
-        temp_img_list.append(sprite_sheet.get_image(step_counter, 134, 134, 0.5, 'white'))
+        temp_img_list.append(sprite_sheet.get_image(step_counter, 104, 104, 0.3, 'black'))
         step_counter += 1
     animation_list.append(temp_img_list)
 
