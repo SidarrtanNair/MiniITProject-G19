@@ -14,7 +14,7 @@ pygame.display.set_caption('2D Character Animation with Movement')
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'male_spriteV7_flipped.png')).convert_alpha()
+sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'male_spriteV8_flipped.png')).convert_alpha()
 sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
 
 BLACK = (0, 0, 0)
