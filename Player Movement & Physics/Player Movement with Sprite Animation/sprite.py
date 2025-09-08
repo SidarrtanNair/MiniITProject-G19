@@ -13,15 +13,15 @@ pygame.display.set_caption('Spritesheets')
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'doux.png')).convert_alpha()
+sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'male_spriteV4.png')).convert_alpha()
 sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
 
 BG = (50, 50, 50)
-BLACK = (0, 0, 0)
+BLACK = (50, 50, 50)
 
 #create animation lsit
 animation_list = []
-animation_steps = [4, 6, 3, 4]
+animation_steps = [6, 8, 0, 0]
 action = 0
 last_update = pygame.time.get_ticks()
 animation_cooldown = 250
@@ -31,7 +31,7 @@ step_counter = 0
 for animation in animation_steps:
 	temp_img_list = []
 	for _ in range (animation):
-		temp_img_list.append(sprite_sheet.get_image(step_counter, 24, 24, 3, BLACK))
+		temp_img_list.append(sprite_sheet.get_image(step_counter, 134, 134, 0.5, BLACK))
 		step_counter += 1 
 	animation_list.append(temp_img_list)
 	

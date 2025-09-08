@@ -137,8 +137,8 @@ while run:
     
     # Handle inputs
     keys = pygame.key.get_pressed()
-    left = keys[pygame.K_RIGHT]
-    right = keys[pygame.K_LEFT]
+    left = keys[pygame.K_LEFT]
+    right = keys[pygame.K_RIGHT]
     jump = keys[pygame.K_SPACE]
 
     # Update player movement and animation
