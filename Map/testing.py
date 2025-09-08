@@ -24,12 +24,10 @@ class Playeronworld(Player):
         temp_rect = self.rect.copy()
         temp_rect.x += dx
         temp_rect.y += dy
-        
+
         for block in self.blocks:
-            
             if block["type"] == "bush":
                 continue
-                
             if temp_rect.colliderect(block["rect"]):
                 return True
         return False
@@ -63,13 +61,12 @@ class Playeronworld(Player):
         if not self.check_collision(self.vel_x, 0):
             self.rect.x += self.vel_x
 
-      
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > pygame.display.get_surface().get_width():
             self.rect.right = pygame.display.get_surface().get_width()
 
-#=========================CLASS=====================================#
+#=========================CLASSforWorld=====================================#
 class generateworld:
     def __init__(self):
 
@@ -124,19 +121,14 @@ class generateworld:
         animation_list = load_animations(sprite_sheet_image)
         self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height)
         
-        
-        screen_height = self.screen.get_height()
         spawn_x = 300
         spawn_y = 300
-        
         
         for block in self.blocks:
             if block["type"] != "bush" and abs(block["rect"].centerx - spawn_x) < self.block_width:
                 if block["rect"].top < spawn_y or spawn_y == 0:
                     spawn_y = block["rect"].top
-        
-        if spawn_y == 0:
-            spawn_y = screen_height - 100
+
         
         self.player.rect.bottomleft = (spawn_x, spawn_y)
 
@@ -181,7 +173,6 @@ class generateworld:
     def newseed(self):
         self.seed = random.randint(0, 10**9)
         self.gen_world()
-        # Respawn player after world regeneration
         if self.player:
             self.init_player()
 
@@ -221,7 +212,6 @@ class generateworld:
                             "rect": rect
                         })
 
-            # Player controls
             keys = pygame.key.get_pressed()
             if self.player:
                 left = keys[pygame.K_LEFT] or keys[pygame.K_a]
@@ -231,12 +221,10 @@ class generateworld:
                 self.player.move(left, right, jump)
                 self.player.update()
             
-            # Draw everything
             self.screen.blit(self.background,(0,0))
             for block in self.blocks:
                 self.screen.blit(block["texture"], block["rect"])
             
-            # Draw player
             if self.player:
                 self.player.draw(self.screen)
                 
