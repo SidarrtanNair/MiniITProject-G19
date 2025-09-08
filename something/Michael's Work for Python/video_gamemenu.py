@@ -15,7 +15,7 @@ title_font = pygame.font.Font(None, 200)
 background = pygame.image.load("something\Michael's Work for Python\momentsbeforedisaster.png")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
-STATE = "game"
+STATE = "game" 
 
 def draw_game():
     title_text = title_font.render("Campus of Cosmos", True, "purple")
