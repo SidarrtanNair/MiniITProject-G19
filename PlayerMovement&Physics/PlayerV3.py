@@ -20,7 +20,7 @@ WHITE = (255, 255, 255)
 FPS = 60
 
 # Animation frames count (adjust if they differ)
-animation_steps = [6, 8, 6, 0]  # e.g. idle, walk right, jump, etc.
+animation_steps = [6, 8, 6]  # e.g. idle, walk right, jump, etc.
 
 SCALE = 3
 
@@ -78,6 +78,10 @@ class Player:
             if self.frame >= len(self.animation_list[self.action]):
                 self.frame = 0
 
+        # Ensure frame is within bounds (safety check)
+        if self.frame >= len(self.animation_list[self.action]):
+            self.frame = 0
+
         # Set current image animation frame and scale
         self.image = self.animation_list[self.action][self.frame]
         self.image = pygame.transform.scale(self.image, (self.image.get_width()*SCALE, self.image.get_height()*SCALE))
@@ -116,15 +120,21 @@ class Player:
             self.vel_x = self.speed
             self.flip = False
 
+        # Store previous action to detect changes
+        previous_action = self.action
+
         # Set action state
         if self.in_air:
             self.action = JUMP
-            self.frame = 0  # reset animation frame for jump
         else:
             if self.vel_x != 0:
                 self.action = WALK
             else:
                 self.action = IDLE
+
+        # Reset animation frame when action changes
+        if previous_action != self.action:
+            self.frame = 0
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
@@ -174,10 +184,9 @@ def main():
 
     # Load sprite sheet based on gender
     if gender == 'male':
-        sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'male_spriteV8_flipped.png')).convert_alpha()
+        sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/male_spriteV8_flipped.png')).convert_alpha()
     else:
-        # You need to have a female sprite sheet image in your directory
-        sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'female_spriteV1_flipped.png')).convert_alpha()
+        sprite_sheet_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_spriteV1_flipped.png')).convert_alpha()
 
     animation_list = load_animations(sprite_sheet_image)
 
@@ -188,7 +197,7 @@ def main():
     while run:
         clock.tick(FPS)
 
-          # Handle inputs
+        # Handle inputs
         keys = pygame.key.get_pressed()
         left = keys[pygame.K_LEFT]
         right = keys[pygame.K_RIGHT]
@@ -217,4 +226,4 @@ def main():
     pygame.quit()
 
 if __name__ == "__main__":
-    main()               
+    main()
