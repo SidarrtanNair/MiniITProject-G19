@@ -78,6 +78,10 @@ class Player:
             if self.frame >= len(self.animation_list[self.action]):
                 self.frame = 0
 
+        # Ensure frame is within bounds (safety check)
+        if self.frame >= len(self.animation_list[self.action]):
+            self.frame = 0
+
         # Set current image animation frame and scale
         self.image = self.animation_list[self.action][self.frame]
         self.image = pygame.transform.scale(self.image, (self.image.get_width()*SCALE, self.image.get_height()*SCALE))
@@ -116,15 +120,21 @@ class Player:
             self.vel_x = self.speed
             self.flip = False
 
+        # Store previous action to detect changes
+        previous_action = self.action
+
         # Set action state
         if self.in_air:
             self.action = JUMP
-            self.frame = 0  # reset animation frame for jump
         else:
             if self.vel_x != 0:
                 self.action = WALK
             else:
                 self.action = IDLE
+
+        # Reset animation frame when action changes
+        if previous_action != self.action:
+            self.frame = 0
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
@@ -187,7 +197,7 @@ def main():
     while run:
         clock.tick(FPS)
 
-          # Handle inputs
+        # Handle inputs
         keys = pygame.key.get_pressed()
         left = keys[pygame.K_LEFT]
         right = keys[pygame.K_RIGHT]
@@ -216,4 +226,4 @@ def main():
     pygame.quit()
 
 if __name__ == "__main__":
-    main()               
+    main()

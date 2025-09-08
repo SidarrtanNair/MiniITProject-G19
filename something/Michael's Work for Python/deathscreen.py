@@ -7,7 +7,9 @@ WIDTH, HEIGHT = info.current_w, info.current_h
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Death Screen')
 fps = 60
-timer = pygame.time.Clock()
+clock = pygame.time.Clock()
+bg_deathscreen = pygame.image.load("cosmos3rd.jpg")
+bg_deathscreen = pygame.transform.scale(bg_deathscreen, (WIDTH, HEIGHT))
 font = pygame.font.Font(None, 120)
 small_font = pygame.font.Font(None, 60)
 
@@ -25,14 +27,14 @@ def draw_death():
     screen.blit(small_font.render("Back To Menu", True, "black"), (WIDTH//2 - 100, HEIGHT//2 + 130))
 
     if retry_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-        return "retry"
+        return "respawn"
     if quit_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
         return "quit"
     return "death"
 
 run = True
 while run:
-    timer.tick(fps)
+    clock.tick(fps)
     if STATE == "death":
         STATE = draw_death()
 
@@ -40,8 +42,8 @@ while run:
         if event.type == pygame.QUIT:
             run = False
 
-    if STATE == "retry":
-        print("Retry pressed")
+    if STATE == "respawn":
+        print("respawn pressed")
         run = False
     elif STATE == "quit":
         print("Quit pressed")
