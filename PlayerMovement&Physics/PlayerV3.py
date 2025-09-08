@@ -162,16 +162,10 @@ def gender_selection_screen():
 
     while selecting:
         screen.fill(BG)
-<<<<<<< HEAD
-
+        
         title_text = font.render("Select Your Character Gender", True, 'white')
         male_text = small_font.render("Press M for Male", True, 'white')
         female_text = small_font.render("Press F for Female", True, 'white')
-=======
-        title_text = font.render("Select Your Character Gender", True, WHITE)
-        male_text = small_font.render("Press M for Male", True, WHITE)
-        female_text = small_font.render("Press F for Female", True, WHITE)
->>>>>>> ecb6ceb00bf0c6739055c02a2d6f2d5b08b42e03
 
         screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, SCREEN_HEIGHT//3))
         screen.blit(male_text, (SCREEN_WIDTH//2 - male_text.get_width()//2, SCREEN_HEIGHT//2))
