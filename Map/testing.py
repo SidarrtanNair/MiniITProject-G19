@@ -61,7 +61,7 @@ class Playeronworld(Player):
             self.rect.right = pygame.display.get_surface().get_width()
 
     def draw(self, surf):
-        super().draw(surf)  
+        surf.blit(self.image, self.rect)
 
 #=========================CLASSforWorld=====================================#
 class generateworld:
@@ -169,11 +169,15 @@ class generateworld:
         self.gen_world()
         if self.player:
             self.init_player()
+
     def run(self):
         running = True
         radius = 5 * self.block_width 
+        health_display_time = 1000  # milliseconds to show health bar after change
+        last_health_change = 0  # track last change
 
         while running:
+            current_time = pygame.time.get_ticks()
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
@@ -185,6 +189,14 @@ class generateworld:
                         pygame.quit()
                     if event.key == pygame.K_r:
                         self.newseed()
+                    # --- DISCRETE HEALTH CHANGE ON PRESS ---
+                    if self.player:
+                        if event.key == pygame.K_UP:
+                            self.player.get_health(50)
+                            last_health_change = current_time
+                        if event.key == pygame.K_DOWN:
+                            self.player.get_damage(50)
+                            last_health_change = current_time
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_position = pygame.mouse.get_pos()
@@ -203,24 +215,21 @@ class generateworld:
                                 col = x // self.block_width
                                 row = (self.screen.get_height() - y) // self.block_height  
                                 y_px = self.screen.get_height() - (row + 1) * self.block_height
-                                rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
-                                self.blocks.append({
-                                    "type": "dirt",
-                                    "texture": self.blocklibrary['dirt'],
-                                    "rect": rect
-                                })
+                                new_block_rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
+                                
+                        
+                                if not new_block_rect.colliderect(self.player.rect):
+                                    self.blocks.append({
+                                        "type": "dirt",
+                                        "texture": self.blocklibrary['dirt'],
+                                        "rect": new_block_rect
+                                    })
 
             keys = pygame.key.get_pressed()
             if self.player:
-                left = keys[pygame.K_LEFT] 
-                right = keys[pygame.K_RIGHT] 
+                left = keys[pygame.K_a] 
+                right = keys[pygame.K_d] 
                 jump = keys[pygame.K_SPACE] 
-            
-           
-                if keys[pygame.K_LEFT]:
-                    self.player.get_health(50)
-                if keys[pygame.K_RIGHT]:
-                    self.player.get_damage(50)
 
                 self.player.move(left, right, jump)
                 self.player.update()
@@ -230,14 +239,14 @@ class generateworld:
                 self.screen.blit(block["texture"], block["rect"])
         
             if self.player:
-                self.player.draw(self.screen)  
-
-                
+                # Only draw health bar if recently changed
+                if current_time - last_health_change <= health_display_time:
+                    self.player.draw_health_bar(self.screen)
+                self.player.draw(self.screen)  # draw player
 
             pygame.display.flip()
             self.clock.tick(60)
         pygame.quit()
-
 
 
 if __name__ == "__main__":
