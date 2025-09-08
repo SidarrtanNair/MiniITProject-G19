@@ -88,10 +88,10 @@ class generateworld:
                 })
             #if random.random() < 0.7:  (for trees later)
                    # y_px = screen_height - height * self.block_height - self.block_height
-                    #rect = self.blocklibrary['bush'].get_rect(topleft=(x * self.block_width, y_px))
+                    #rect = self.blocklibrary['trees1'].get_rect(topleft=(x * self.block_width, y_px))
                     #self.blocks.append({
-                        #"type": "bush",
-                        #"texture": self.blocklibrary['bush'],
+                        #"type": "trees1",
+                        #"texture": self.blocklibrary[''],
                         #"rect": rect
                     #})
     # regenerate with new random seed

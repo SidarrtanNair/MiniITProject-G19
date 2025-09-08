@@ -7,7 +7,9 @@ WIDTH, HEIGHT = info.current_w, info.current_h
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Death Screen')
 fps = 60
-timer = pygame.time.Clock()
+clock = pygame.time.Clock()
+bg_deathscreen = pygame.image.load("cosmos3rd.jpg")
+bg_deathscreen = pygame.transform.scale(bg_deathscreen, (WIDTH, HEIGHT))
 font = pygame.font.Font(None, 120)
 small_font = pygame.font.Font(None, 60)
 
@@ -32,7 +34,7 @@ def draw_death():
 
 run = True
 while run:
-    timer.tick(fps)
+    clock.tick(fps)
     if STATE == "death":
         STATE = draw_death()
 
