@@ -1,6 +1,5 @@
-import pygame , random , time , sys , os
+import pygame , random , time , sys , os 
 from opensimplex import *
-
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.dirname(current_directory)
 player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
@@ -9,7 +8,7 @@ sys.path.append(player_directory)
 from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
 
-class Playeronworld(Player):
+class Playeronworld(Player): #1
     def __init__(self, animation_list, blocks, block_width, block_height):
         super().__init__(animation_list)
         self.blocks = blocks
@@ -66,16 +65,15 @@ class Playeronworld(Player):
 #=========================CLASSforWorld=====================================#
 class generateworld:
     def __init__(self):
-
-        pygame.init()
+        
+        pygame.init() 
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
-        
-        pygame.display.set_caption("World Gen Test")
         self.clock = pygame.time.Clock()
-        self.background = pygame.image.load("Map\BACKGROUND\hCUwLQ.png").convert()
+        self.background = pygame.image.load("Map\BACKGROUND\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
-
+        # Initialize
+        # Blocks
         self.blocklibrary = {
             'dirt': pygame.transform.scale(
                 pygame.image.load("Map\BLOCK\dirt_block_resize.png").convert(), (32, 32)),
@@ -95,17 +93,14 @@ class generateworld:
         
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
-
         self.blocks = []  
         self.seed = None
         self.set_seed()
         self.gen_world()
-
         self.init_player()
 
     def init_player(self):
         gender = gender_selection_screen()
-        
         if gender == 'male':
             sprite_path = os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_spriteV8_flipped.png')
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
@@ -116,8 +111,9 @@ class generateworld:
         animation_list = load_animations(sprite_sheet_image)
         self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height)
         
+        
         spawn_x = 300
-        spawn_y = 300
+        spawn_y = 300 #spawningcoords
         
         for block in self.blocks:
             if block["type"] != "bush" and abs(block["rect"].centerx - spawn_x) < self.block_width:
@@ -169,12 +165,12 @@ class generateworld:
         self.gen_world()
         if self.player:
             self.init_player()
-
+#====================================GAMELOOP=================================================#
     def run(self):
         running = True
         radius = 5 * self.block_width 
-        health_display_time = 1000  # milliseconds to show health bar after change
-        last_health_change = 0  # track last change
+        health_display_time = 3000  
+        last_health_change = 0  
 
         while running:
             current_time = pygame.time.get_ticks()
@@ -189,12 +185,13 @@ class generateworld:
                         pygame.quit()
                     if event.key == pygame.K_r:
                         self.newseed()
-                    # --- DISCRETE HEALTH CHANGE ON PRESS ---
+                    
                     if self.player:
-                        if event.key == pygame.K_UP:
+                        if event.key == pygame.K_d:
                             self.player.get_health(50)
                             last_health_change = current_time
-                        if event.key == pygame.K_DOWN:
+
+                        if event.key == pygame.K_SPACE:
                             self.player.get_damage(50)
                             last_health_change = current_time
 
@@ -202,7 +199,7 @@ class generateworld:
                     mouse_position = pygame.mouse.get_pos()
                     if self.player:
                         player_center = self.player.rect.center
-                        distance = ((mouse_position[0]-player_center[0])**2 + (mouse_position[1]-player_center[1])**2)**0.5
+                        distance = ((mouse_position[0] - player_center[0])**2 + (mouse_position[1] - player_center[1]) **2) **0.5
 
                         if distance <= radius:  
                             if event.button == 1:  
@@ -238,11 +235,10 @@ class generateworld:
             for block in self.blocks:
                 self.screen.blit(block["texture"], block["rect"])
         
-            if self.player:
-                # Only draw health bar if recently changed
+            if self.player: #draw
                 if current_time - last_health_change <= health_display_time:
                     self.player.draw_health_bar(self.screen)
-                self.player.draw(self.screen)  # draw player
+                self.player.draw(self.screen)
 
             pygame.display.flip()
             self.clock.tick(60)
