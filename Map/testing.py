@@ -1,16 +1,12 @@
-import pygame
+import pygame , random , time , sys , os
 from opensimplex import *
-import random, time
-import sys
-import os
-
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.dirname(current_directory)
 player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
 sys.path.append(player_directory)
 
-from PlayerV3 import Player, load_animations, gender_selection_screen
+from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
 
 class Playeronworld(Player):
@@ -47,7 +43,6 @@ class Playeronworld(Player):
 
         self.vel_y += self.gravity
         
-
         if not self.check_collision(0, self.vel_y):
             self.rect.y += self.vel_y
         else:
@@ -57,7 +52,6 @@ class Playeronworld(Player):
             elif self.vel_y < 0:  
                 self.vel_y = 0
 
-        
         if not self.check_collision(self.vel_x, 0):
             self.rect.x += self.vel_x
 
@@ -65,6 +59,9 @@ class Playeronworld(Player):
             self.rect.left = 0
         if self.rect.right > pygame.display.get_surface().get_width():
             self.rect.right = pygame.display.get_surface().get_width()
+
+    def draw(self, surf):
+        super().draw(surf)  
 
 #=========================CLASSforWorld=====================================#
 class generateworld:
@@ -74,7 +71,6 @@ class generateworld:
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         
-
         pygame.display.set_caption("World Gen Test")
         self.clock = pygame.time.Clock()
         self.background = pygame.image.load("Map\BACKGROUND\hCUwLQ.png").convert()
@@ -105,7 +101,6 @@ class generateworld:
         self.set_seed()
         self.gen_world()
 
-        
         self.init_player()
 
     def init_player(self):
@@ -129,7 +124,6 @@ class generateworld:
                 if block["rect"].top < spawn_y or spawn_y == 0:
                     spawn_y = block["rect"].top
 
-        
         self.player.rect.bottomleft = (spawn_x, spawn_y)
 
     def set_seed(self):
@@ -175,9 +169,10 @@ class generateworld:
         self.gen_world()
         if self.player:
             self.init_player()
-
     def run(self):
         running = True
+        radius = 5 * self.block_width 
+
         while running:
             for event in pygame.event.get():
 
@@ -185,7 +180,6 @@ class generateworld:
                     running = False
 
                 if event.type == pygame.KEYDOWN:
-                
                     if event.key == pygame.K_ESCAPE:
                         running = False
                         pygame.quit()
@@ -194,43 +188,56 @@ class generateworld:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_position = pygame.mouse.get_pos()
+                    if self.player:
+                        player_center = self.player.rect.center
+                        distance = ((mouse_position[0]-player_center[0])**2 + (mouse_position[1]-player_center[1])**2)**0.5
 
-                    if event.button == 1: 
-                        for block in self.blocks:
-                            if block["rect"].collidepoint(mouse_position):
-                                self.blocks.remove(block)
-                                
-                    elif event.button == 3: 
-                        x, y = mouse_position
-                        col = x // self.block_width
-                        row = (self.screen.get_height() - y) // self.block_height  
-                        y_px = self.screen.get_height() - (row + 1) * self.block_height
-                        rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
-                        self.blocks.append({
-                            "type": "dirt",
-                            "texture": self.blocklibrary['dirt'],
-                            "rect": rect
-                        })
+                        if distance <= radius:  
+                            if event.button == 1:  
+                                for block in self.blocks:
+                                    if block["rect"].collidepoint(mouse_position):
+                                        self.blocks.remove(block)
+                                        break  
+                            elif event.button == 3:  
+                                x, y = mouse_position
+                                col = x // self.block_width
+                                row = (self.screen.get_height() - y) // self.block_height  
+                                y_px = self.screen.get_height() - (row + 1) * self.block_height
+                                rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
+                                self.blocks.append({
+                                    "type": "dirt",
+                                    "texture": self.blocklibrary['dirt'],
+                                    "rect": rect
+                                })
 
             keys = pygame.key.get_pressed()
             if self.player:
-                left = keys[pygame.K_LEFT] or keys[pygame.K_a]
-                right = keys[pygame.K_RIGHT] or keys[pygame.K_d] 
-                jump = keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]
-                
+                left = keys[pygame.K_LEFT] 
+                right = keys[pygame.K_RIGHT] 
+                jump = keys[pygame.K_SPACE] 
+            
+           
+                if keys[pygame.K_LEFT]:
+                    self.player.get_health(50)
+                if keys[pygame.K_RIGHT]:
+                    self.player.get_damage(50)
+
                 self.player.move(left, right, jump)
                 self.player.update()
-            
+        
             self.screen.blit(self.background,(0,0))
             for block in self.blocks:
                 self.screen.blit(block["texture"], block["rect"])
-            
+        
             if self.player:
-                self.player.draw(self.screen)
+                self.player.draw(self.screen)  
+
                 
+
             pygame.display.flip()
             self.clock.tick(60)
         pygame.quit()
+
 
 
 if __name__ == "__main__":
