@@ -25,7 +25,6 @@ class Player(pygame.sprite.Sprite):
             self.current_health = self.maximum_health
 
     def basic_health(self):
-        # Draw background (grey bar)
         pygame.draw.rect(screen, (60, 60, 60), (10, 10, self.health_bar_length, 50))
         pygame.draw.rect(screen, (255, 0, 0), (10, 10, self.current_health / self.health_ratio, 50))
         pygame.draw.rect(screen, (255,255,255),(10,10,self.health_bar_length,50),4)
@@ -37,7 +36,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.basic_health()
-
+# i stupidly realised that i did not indent basic_health, get_damage and get_health under Player bruh
 
 pygame.init()
 screen = pygame.display.set_mode((1600, 900))

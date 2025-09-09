@@ -129,6 +129,7 @@ while run:
     elif STATE == "credits":
         STATE = draw_credits()
 
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False

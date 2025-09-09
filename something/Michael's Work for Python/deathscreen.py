@@ -29,7 +29,7 @@ def draw_death():
     if retry_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
         return "respawn"
     if quit_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-        return "quit"
+        return "menu"
     return "death"
 
 run = True
