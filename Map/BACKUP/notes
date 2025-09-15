@@ -1,0 +1,8 @@
+libraries im using imran
+pygame {used} 
+random {x}
+opensimplex [noisemap]
+time
+sys
+os
+

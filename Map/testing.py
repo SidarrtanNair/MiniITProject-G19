@@ -9,6 +9,7 @@ sys.path.append(player_directory)
 from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
 
+
 class Playeronworld(Player): #1
     def __init__(self, animation_list, blocks, block_width, block_height, world_width):
         super().__init__(animation_list)
@@ -18,22 +19,6 @@ class Playeronworld(Player): #1
         self.world_width = world_width
         self.health = 100
         
-    def get_damage(self, amt):
-        try:
-            self.health -= amt
-        except:
-            self.health = max(0, 0)
-        if self.health < 0:
-            self.health = 0
-
-    def get_health(self, amt):
-        try:
-            self.health += amt
-        except:
-            self.health = 0
-        if self.health > 100:
-            self.health = 100
-
     def check_collision(self, dx, dy):
         temp_rect = self.rect.copy()
         temp_rect.x += dx
@@ -78,9 +63,9 @@ class Playeronworld(Player): #1
 
     def draw_health_bar(self, surf, camera_x):
         bar_width = 40
-        bar_height = 6
-        x = self.rect.centerx + camera_x - bar_width//2
-        y = self.rect.top - 15
+        bar_height = 5
+        x = self.rect.x + camera_x + (self.rect.width // 2) - (bar_width // 2)
+        y = self.rect.y - 12
         pygame.draw.rect(surf, (255,0,0), (x,y,bar_width,bar_height))
         pygame.draw.rect(surf, (0,255,0), (x,y,bar_width * (self.health/100),bar_height))
 
@@ -177,7 +162,7 @@ class generateworld:
                     depth = (y_px - surface_y) // self.block_height
                     if depth > 0:
                         max_depth = 20
-                        factor = max(0, 1 - ((depth / max_depth) ** 2))
+                        factor = max(0, 1 - ((depth / max_depth) ** 2))  # quadratic falloff → very dark at bottom
                         texture = texture.copy()
                         texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
                     rect = texture.get_rect(
@@ -187,34 +172,31 @@ class generateworld:
                         "texture": texture,
                         "rect": rect
                     })
-                    if blocktype == "grass":
-                        if random.random() < 0.15:
-                            ground_y = rect.y
-                            stump_rect = self.blocklibrary['tree_stump'].get_rect(
-                                topleft=(rect.x, ground_y - self.block_height))
+                    if blocktype == "grass" and random.random() < 0.15:
+                        ground_y = rect.y
+                        stump_rect = self.blocklibrary['tree_stump'].get_rect(
+                            topleft=(rect.x, ground_y - self.block_height))
+                        self.blocks.append({
+                            "type": "tree_stump",
+                            "texture": self.blocklibrary['tree_stump'],
+                            "rect": stump_rect
+                        })
+                        tree_height = random.randint(1, 3)
+                        for i in range(tree_height):
+                            log_rect = self.blocklibrary['tree_log'].get_rect(
+                                topleft=(rect.x, ground_y - (i + 2) * self.block_height))
                             self.blocks.append({
-                                "type": "tree_stump",
-                                "texture": self.blocklibrary['tree_stump'],
-                                "rect": stump_rect
+                                "type": "tree_log",
+                                "texture": self.blocklibrary['tree_log'],
+                                "rect": log_rect
                             })
-                            # remove bush if it overlaps stump
-                            self.blocks = [b for b in self.blocks if not (b["type"] == "bush" and b["rect"].colliderect(stump_rect))]
-                            tree_height = random.randint(3, 6)
-                            for i in range(tree_height):
-                                log_rect = self.blocklibrary['tree_log'].get_rect(
-                                    topleft=(rect.x, ground_y - (i + 2) * self.block_height))
-                                self.blocks.append({
-                                    "type": "tree_log",
-                                    "texture": self.blocklibrary['tree_log'],
-                                    "rect": log_rect
-                                })
-                            top_rect = self.blocklibrary['tree_top'].get_rect(
-                                topleft=(rect.x, ground_y - (tree_height + 2) * self.block_height))
-                            self.blocks.append({
-                                "type": "tree_top",
-                                "texture": self.blocklibrary['tree_top'],
-                                "rect": top_rect
-                            })
+                        top_rect = self.blocklibrary['tree_top'].get_rect(
+                            topleft=(rect.x, ground_y - (tree_height + 2) * self.block_height))
+                        self.blocks.append({
+                            "type": "tree_top",
+                            "texture": self.blocklibrary['tree_top'],
+                            "rect": top_rect
+                        })
 
     def newseed(self):
         self.seed = random.randint(0, 10**9)
@@ -227,10 +209,10 @@ class generateworld:
         radius = 5 * self.block_width 
         health_display_time = 3000  
         last_health_change = 0  
+        camera_x = 0  
         screen_width = self.screen.get_width()
         while running:
             current_time = pygame.time.get_ticks()
-            camera_x = -(self.current_scene * screen_width)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -240,6 +222,10 @@ class generateworld:
                         pygame.quit()
                     if event.key == pygame.K_r:
                         self.newseed()
+                    if event.key == pygame.K_RIGHT:
+                        self.current_scene = min(self.num_levels-1, self.current_scene+1)
+                    if event.key == pygame.K_LEFT:
+                        self.current_scene = max(0, self.current_scene-1)
                     if event.key == pygame.K_c:
                         self.highlight = not self.highlight
                     if self.player:
@@ -249,32 +235,24 @@ class generateworld:
                         if event.key == pygame.K_j:
                             self.player.health = max(0, self.player.health-10)
                             last_health_change = current_time
-                        if event.key == pygame.K_d:
-                            self.player.get_health(10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_SPACE:
-                            self.player.get_damage(10)
-                            last_health_change = current_time
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_position = pygame.mouse.get_pos()
-                    world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
                     if self.player:
                         player_center = self.player.rect.center
-                        distance = ((world_mouse[0] - player_center[0])**2 + (world_mouse[1] - player_center[1]) **2) **0.5
+                        distance = ((mouse_position[0] - player_center[0])**2 + (mouse_position[1] - player_center[1]) **2) **0.5
                         if distance <= radius:  
                             if event.button == 1:  
                                 for block in self.blocks:
-                                    if block["rect"].collidepoint(world_mouse):
+                                    if block["rect"].collidepoint(mouse_position):
                                         self.blocks.remove(block)
                                         break  
                             elif event.button == 3:  
-                                x, y = world_mouse
-                                col = int(x // self.block_width)
-                                row = int((self.screen.get_height() - y) // self.block_height)  
+                                x, y = mouse_position
+                                col = (x - camera_x) // self.block_width
+                                row = (self.screen.get_height() - y) // self.block_height  
                                 y_px = self.screen.get_height() - (row + 1) * self.block_height
                                 new_block_rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
-                                occupied = any(b["rect"].colliderect(new_block_rect) for b in self.blocks)
-                                if not new_block_rect.colliderect(self.player.rect) and not occupied:
+                                if not new_block_rect.colliderect(self.player.rect):
                                     self.blocks.append({
                                         "type": "dirt",
                                         "texture": self.blocklibrary['dirt'],
@@ -287,20 +265,10 @@ class generateworld:
                 jump = keys[pygame.K_SPACE] 
                 self.player.move(left, right, jump)
                 self.player.update()
-                if self.player.rect.right > (self.current_scene + 1) * screen_width:
-                    if self.current_scene < self.num_levels - 1:
-                        self.current_scene += 1
-                        self.player.rect.left = self.current_scene * screen_width + 1
-                elif self.player.rect.left < self.current_scene * screen_width:
-                    if self.current_scene > 0:
-                        self.current_scene -= 1
-                        self.player.rect.right = (self.current_scene + 1) * screen_width - 1
-
+            camera_x = -(self.current_scene * screen_width)
             self.screen.blit(self.background,(0,0))
             for block in self.blocks:
                 block_rect = block["rect"].move(camera_x, 0)
-                if block_rect.right < 0 or block_rect.left > screen_width:
-                    continue
                 self.screen.blit(block["texture"], block_rect)
             if self.highlight:
                 mx,my = pygame.mouse.get_pos()

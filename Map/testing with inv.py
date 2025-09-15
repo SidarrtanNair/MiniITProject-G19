@@ -1,6 +1,7 @@
 import pygame , random , time , sys , os 
 from opensimplex import *
 
+# Your existing imports remain the same
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.dirname(current_directory)
 player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
@@ -8,6 +9,69 @@ sys.path.append(player_directory)
 
 from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
+
+# NEW INVENTORY CLASS
+class Inventory:
+    def __init__(self):
+        # Initialize inventory with 4 block types
+        self.blocks = {
+            1: {'name': 'dirt', 'broken': 0, 'placed': 0},
+            2: {'name': 'grass', 'broken': 0, 'placed': 0},
+            3: {'name': 'dirtstone', 'broken': 0, 'placed': 0},
+            4: {'name': 'stone', 'broken': 0, 'placed': 0}
+        }
+        self.selected_block_key = 1  # Default to dirt (key 1)
+        self.font = pygame.font.Font(None, 24)
+        
+    def get_selected_block_type(self):
+        """Returns the currently selected block type name"""
+        return self.blocks[self.selected_block_key]['name']
+    
+    def select_block(self, key):
+        """Select block type based on key press (1-4)"""
+        if key in self.blocks:
+            self.selected_block_key = key
+    
+    def add_broken(self, block_type):
+        """Increment broken count for a block type"""
+        for key, block in self.blocks.items():
+            if block['name'] == block_type:
+                block['broken'] += 1
+                break
+    
+    def add_placed(self, block_type):
+        """Increment placed count for a block type"""
+        for key, block in self.blocks.items():
+            if block['name'] == block_type:
+                block['placed'] += 1
+                break
+    
+    def draw(self, screen):
+        """Draw the inventory in the top right corner"""
+        screen_width = screen.get_width()
+        start_x = screen_width - 200  # 200 pixels from right edge
+        start_y = 20  # 20 pixels from top
+        
+        # Background for inventory
+        inventory_bg = pygame.Rect(start_x - 10, start_y - 10, 190, 120)
+        pygame.draw.rect(screen, (0, 0, 0, 128), inventory_bg)  # Semi-transparent black
+        pygame.draw.rect(screen, (255, 255, 255), inventory_bg, 2)  # White border
+        
+        # Title
+        title_text = self.font.render("INVENTORY", True, (255, 255, 255))
+        screen.blit(title_text, (start_x, start_y))
+        
+        # Draw each inventory item
+        y_offset = start_y + 25
+        for key, block in self.blocks.items():
+            # Highlight selected block
+            color = (255, 255, 0) if key == self.selected_block_key else (255, 255, 255)
+            
+            # Format: "1. dirt - 2 : 4"
+            text = f"{key}. {block['name']} - {block['broken']} : {block['placed']}"
+            rendered_text = self.font.render(text, True, color)
+            screen.blit(rendered_text, (start_x, y_offset))
+            y_offset += 22
 
 class Playeronworld(Player): #1
     def __init__(self, animation_list, blocks, block_width, block_height, world_width):
@@ -17,7 +81,7 @@ class Playeronworld(Player): #1
         self.block_height = block_height
         self.world_width = world_width
         self.health = 100
-        
+
     def get_damage(self, amt):
         try:
             self.health -= amt
@@ -33,13 +97,13 @@ class Playeronworld(Player): #1
             self.health = 0
         if self.health > 100:
             self.health = 100
-
+        
     def check_collision(self, dx, dy):
         temp_rect = self.rect.copy()
         temp_rect.x += dx
         temp_rect.y += dy
         for block in self.blocks:
-            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top"]:
+            if block["type"] == "bush":
                 continue
             if temp_rect.colliderect(block["rect"]):
                 return True
@@ -69,47 +133,47 @@ class Playeronworld(Player): #1
             self.rect.x += self.vel_x
         if self.rect.left < 0:
             self.rect.left = 0
-        if self.rect.right > self.world_width:
+        if self.rect.right > self.world_width: 
             self.rect.right = self.world_width
+    def draw(self, surf):
+        surf.blit(self.image, self.rect)
+        self.draw_health_bar(surf) 
 
-    def draw(self, surf, camera_x):
-        surf.blit(self.image, self.rect.move(camera_x, 0))
-        self.draw_health_bar(surf, camera_x) 
-
-    def draw_health_bar(self, surf, camera_x):
-        bar_width = 40
+    def draw_health_bar(self, surf):
+        bar_width = 50
         bar_height = 6
-        x = self.rect.centerx + camera_x - bar_width//2
-        y = self.rect.top - 15
+        x = self.rect.x
+        y = self.rect.y - 15
         pygame.draw.rect(surf, (255,0,0), (x,y,bar_width,bar_height))
         pygame.draw.rect(surf, (0,255,0), (x,y,bar_width * (self.health/100),bar_height))
 
-
+#=========================CLASSforWorld=====================================#
 class generateworld:
     def __init__(self):
         pygame.init() 
+        # Initialize font for inventory
+        pygame.font.init()
+        
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
-        self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
+        self.background = pygame.image.load("Map\BACKGROUND\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
+        
+        # Initialize inventory system
+        self.inventory = Inventory()
+        
         self.blocklibrary = {
             'dirt': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\dirt_block_resize.png").convert(), (32, 32)),
+                pygame.image.load("Map\BLOCK\dirt_block_resize.png").convert(), (32, 32)),
             'grass': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\grassdirt_block_resize.png").convert(), (32, 32)),
+                pygame.image.load("Map\BLOCK\grassdirt_block_resize.png").convert(), (32, 32)),
             'dirtstone': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\dirtstone_block_gradient_1_resize.png").convert(),(32,32)),
+                pygame.image.load("Map\BLOCK\dirtstone_block_gradient_1_resize.png").convert(),(32,32)),
             'stone': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\stone_block_resize.png").convert(), (32, 32)),
+                pygame.image.load("Map\BLOCK\stone_block_resize.png").convert(), (32, 32)),
             'bush':pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\grass_resize.png").convert_alpha(), (32, 32)),
-            'tree_stump': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_wood_stump.png").convert_alpha(), (32, 32)),
-            'tree_log': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_wood.png").convert_alpha(), (32, 32)),
-            'tree_top': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree.png").convert_alpha(), (32,32)),
+                pygame.image.load("Map\BLOCK\grass_resize.png").convert_alpha(), (32, 32)),
         }
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
@@ -117,10 +181,9 @@ class generateworld:
         self.seed = None
         self.set_seed()
         self.num_levels = 3
+        self.current_scene = 0
         self.gen_world(num_levels=self.num_levels)
         self.init_player()
-        self.current_scene = 0  
-        self.highlight = False
 
     def init_player(self):
         gender = gender_selection_screen()
@@ -136,8 +199,8 @@ class generateworld:
         spawn_x = 300
         spawn_y = 300
         for block in self.blocks:
-            if block["type"] not in ["bush","tree_stump","tree_log","tree_top"] and abs(block["rect"].centerx - spawn_x) < self.block_width:
-                if block["rect"].top < spawn_y or spawn_y == 2:
+            if block["type"] != "bush" and abs(block["rect"].centerx - spawn_x) < self.block_width:
+                if block["rect"].top < spawn_y or spawn_y == 0:
                     spawn_y = block["rect"].top
         self.player.rect.bottomleft = (spawn_x, spawn_y)
 
@@ -156,65 +219,25 @@ class generateworld:
                 base = rows // 4
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
-                surface_y = screen_height - (height * self.block_height)
                 for y in range(height):
                     y_px = screen_height - (y + 1) * self.block_height
                     if y == height - 1:
                         blocktype = "bush"
-                        texture = self.blocklibrary[blocktype]
                     elif y == height -2:
                         blocktype = "grass"
-                        texture = self.blocklibrary[blocktype]
                     elif y == height - 6 :
                         blocktype = "dirtstone"
-                        texture = self.blocklibrary[blocktype]
                     elif y < height - 6:
                         blocktype = "stone"
-                        texture = self.blocklibrary[blocktype]
                     else:
                         blocktype = "dirt"
-                        texture = self.blocklibrary[blocktype]
-                    depth = (y_px - surface_y) // self.block_height
-                    if depth > 0:
-                        max_depth = 20
-                        factor = max(0, 1 - ((depth / max_depth) ** 2))
-                        texture = texture.copy()
-                        texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
-                    rect = texture.get_rect(
+                    rect = self.blocklibrary[blocktype].get_rect(
                         topleft=((x + level * cols) * self.block_width, y_px))
                     self.blocks.append({
                         "type": blocktype,
-                        "texture": texture,
+                        "texture": self.blocklibrary[blocktype],
                         "rect": rect
                     })
-                    if blocktype == "grass":
-                        if random.random() < 0.15:
-                            ground_y = rect.y
-                            stump_rect = self.blocklibrary['tree_stump'].get_rect(
-                                topleft=(rect.x, ground_y - self.block_height))
-                            self.blocks.append({
-                                "type": "tree_stump",
-                                "texture": self.blocklibrary['tree_stump'],
-                                "rect": stump_rect
-                            })
-                            # remove bush if it overlaps stump
-                            self.blocks = [b for b in self.blocks if not (b["type"] == "bush" and b["rect"].colliderect(stump_rect))]
-                            tree_height = random.randint(3, 6)
-                            for i in range(tree_height):
-                                log_rect = self.blocklibrary['tree_log'].get_rect(
-                                    topleft=(rect.x, ground_y - (i + 2) * self.block_height))
-                                self.blocks.append({
-                                    "type": "tree_log",
-                                    "texture": self.blocklibrary['tree_log'],
-                                    "rect": log_rect
-                                })
-                            top_rect = self.blocklibrary['tree_top'].get_rect(
-                                topleft=(rect.x, ground_y - (tree_height + 2) * self.block_height))
-                            self.blocks.append({
-                                "type": "tree_top",
-                                "texture": self.blocklibrary['tree_top'],
-                                "rect": top_rect
-                            })
 
     def newseed(self):
         self.seed = random.randint(0, 10**9)
@@ -222,64 +245,96 @@ class generateworld:
         if self.player:
             self.init_player()
 
+#====================================GAMELOOP=================================================#
     def run(self):
         running = True
         radius = 5 * self.block_width 
         health_display_time = 3000  
         last_health_change = 0  
         screen_width = self.screen.get_width()
+        
         while running:
             current_time = pygame.time.get_ticks()
-            camera_x = -(self.current_scene * screen_width)
+            offset_x = -self.current_scene * screen_width
+            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                    
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
                         pygame.quit()
                     if event.key == pygame.K_r:
                         self.newseed()
-                    if event.key == pygame.K_c:
-                        self.highlight = not self.highlight
+                        
+                    # INVENTORY KEY BINDINGS (1-4)
+                    if event.key == pygame.K_1:
+                        self.inventory.select_block(1)
+                    elif event.key == pygame.K_2:
+                        self.inventory.select_block(2)
+                    elif event.key == pygame.K_3:
+                        self.inventory.select_block(3)
+                    elif event.key == pygame.K_4:
+                        self.inventory.select_block(4)
+                        
                     if self.player:
-                        if event.key == pygame.K_h:
-                            self.player.health = min(100, self.player.health+10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_j:
-                            self.player.health = max(0, self.player.health-10)
-                            last_health_change = current_time
                         if event.key == pygame.K_d:
-                            self.player.get_health(10)
+                            self.player.get_health(20)
                             last_health_change = current_time
                         if event.key == pygame.K_SPACE:
-                            self.player.get_damage(10)
+                            self.player.get_damage(20)
                             last_health_change = current_time
+                            
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_position = pygame.mouse.get_pos()
-                    world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
+                    world_mouse = (mouse_position[0] - offset_x, mouse_position[1])
+                    
                     if self.player:
                         player_center = self.player.rect.center
                         distance = ((world_mouse[0] - player_center[0])**2 + (world_mouse[1] - player_center[1]) **2) **0.5
+                        
                         if distance <= radius:  
-                            if event.button == 1:  
+                            if event.button == 3:  # RIGHT CLICK = BREAK BLOCK
                                 for block in self.blocks:
                                     if block["rect"].collidepoint(world_mouse):
+                                        # Add to inventory broken count
+                                        self.inventory.add_broken(block["type"])
                                         self.blocks.remove(block)
                                         break  
-                            elif event.button == 3:  
+                                        
+                            elif event.button == 1:  # LEFT CLICK = PLACE BLOCK
                                 x, y = world_mouse
                                 col = int(x // self.block_width)
                                 row = int((self.screen.get_height() - y) // self.block_height)  
                                 y_px = self.screen.get_height() - (row + 1) * self.block_height
-                                new_block_rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
-                                occupied = any(b["rect"].colliderect(new_block_rect) for b in self.blocks)
-                                if not new_block_rect.colliderect(self.player.rect) and not occupied:
+                                
+                                # Get selected block type from inventory
+                                selected_block_type = self.inventory.get_selected_block_type()
+                                
+                                new_block_rect = self.blocklibrary[selected_block_type].get_rect(
+                                    topleft=(col * self.block_width, y_px))
+                                
+                                # Check if position is valid (no collision with player or existing blocks)
+                                can_place = True
+                                if new_block_rect.colliderect(self.player.rect):
+                                    can_place = False
+                                
+                                for existing_block in self.blocks:
+                                    if existing_block["rect"].colliderect(new_block_rect):
+                                        can_place = False
+                                        break
+                                
+                                if can_place:
+                                    # Add to inventory placed count
+                                    self.inventory.add_placed(selected_block_type)
+                                    
                                     self.blocks.append({
-                                        "type": "dirt",
-                                        "texture": self.blocklibrary['dirt'],
+                                        "type": selected_block_type,
+                                        "texture": self.blocklibrary[selected_block_type],
                                         "rect": new_block_rect
                                     })
+                                    
             keys = pygame.key.get_pressed()
             if self.player:
                 left = keys[pygame.K_a] 
@@ -287,6 +342,8 @@ class generateworld:
                 jump = keys[pygame.K_SPACE] 
                 self.player.move(left, right, jump)
                 self.player.update()
+
+                # scene switching when player crosses scene bounds
                 if self.player.rect.right > (self.current_scene + 1) * screen_width:
                     if self.current_scene < self.num_levels - 1:
                         self.current_scene += 1
@@ -297,24 +354,33 @@ class generateworld:
                         self.player.rect.right = (self.current_scene + 1) * screen_width - 1
 
             self.screen.blit(self.background,(0,0))
+
+            # draw only current scene (offset everything by offset_x)
             for block in self.blocks:
-                block_rect = block["rect"].move(camera_x, 0)
+                block_rect = block["rect"].move(offset_x, 0)
                 if block_rect.right < 0 or block_rect.left > screen_width:
                     continue
                 self.screen.blit(block["texture"], block_rect)
-            if self.highlight:
-                mx,my = pygame.mouse.get_pos()
-                gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
-                gy = (my//self.block_height)*self.block_height
-                pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
+        
             if self.player:
+                # draw healthbar only when recently changed (same style as your code)
+                temp_rect = self.player.rect.move(offset_x, 0)
                 if current_time - last_health_change <= health_display_time:
-                    self.player.draw_health_bar(self.screen, camera_x)
-                self.player.draw(self.screen, camera_x)
+                    bar_width = 50
+                    bar_height = 6
+                    x = temp_rect.x
+                    y = temp_rect.y - 15
+                    pygame.draw.rect(self.screen, (255,0,0), (x,y,bar_width,bar_height))
+                    pygame.draw.rect(self.screen, (0,255,0), (x,y,bar_width * (self.player.health/100),bar_height))
+                # draw player (using current animation image)
+                self.screen.blit(self.player.image, temp_rect)
+
+            # DRAW INVENTORY (always visible in top right)
+            self.inventory.draw(self.screen)
+
             pygame.display.flip()
             self.clock.tick(60)
         pygame.quit()
-
 
 if __name__ == "__main__":
     generateworld().run()
