@@ -4,7 +4,7 @@ import pygame
 pygame.init()
 
 WIDTH, HEIGHT = pygame.display.Info().current_w, pygame.display.Info().current_h
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('Campus of Cosmos')
 fps = 60 
 timer = pygame.time.Clock()
@@ -12,10 +12,11 @@ font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
 
 # background (the 4th time of doing this)
-background = pygame.image.load("momentsbeforedisaster.png")
+background = pygame.image.load("4thcosmos.jpg")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))    
 
 STATE = "game"
+volume = 0.5 # why tf did i not add you
 
 def draw_game():
     title_text = title_font.render("Campus of Cosmos", True, "purple")
@@ -94,10 +95,22 @@ def draw_continue():
     return "continue"
 
 def draw_settings():
+    global volume
     screen.fill("black")
-    screen.blit(font.render("This is for the Settings.", True, "white"), (WIDTH//3, HEIGHT//2))
+    screen.blit(font.render("Settings", True, "white"), (WIDTH//3, HEIGHT//10))
     back_btn = pygame.draw.rect(screen, 'light gray', [10, 10, 150, 40], 0, 5)
     screen.blit(font.render("Back", True, "black"), (20, 15))
+    slider_x, slider_y, slider_w, slider_h = WIDTH//4, HEIGHT//2, 500, 40  # making the audio sliders. Ik no one asked but im still doing it anyway
+    pygame.draw.rect(screen, "gray", [slider_x, slider_y, slider_w, slider_h])
+    filled_w = int(volume * slider_w)
+    pygame.draw.rect(screen, "white", [slider_x, slider_y, filled_w, slider_h], border_radius=5) # the volume bar
+    screen.blit(font.render(f"Volume: {int(volume*100)}%", True, "blue"), (slider_x, slider_y-50))
+    # slider check
+    if pygame.mouse.get_pressed()[0]:
+        mx, my = pygame.mouse.get_pos()
+        if slider_x <= mx <= slider_x+slider_w and slider_y-20 <= my <= slider_y+slider_h+20:
+            volume = (mx - slider_x) / slider_w
+            pygame.mixer.music.set_volume(volume)
     if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
         return "menu"
     return "settings"
