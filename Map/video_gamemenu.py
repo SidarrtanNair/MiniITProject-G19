@@ -1,5 +1,4 @@
-# i had to follow this code from a video and the code from the video gave me too much stress. I legit crashed out. 
-# So i just did this the long way since i understood the longer code
+
 import pygame 
 from scene import generateworld
 pygame.init()
@@ -12,12 +11,12 @@ timer = pygame.time.Clock()
 font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
 
-# background (the 4th time of doing this)
+
 background = pygame.image.load("momentsbeforedisaster.png")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))    
 
 STATE = "game"
-volume = 0.5 # why tf did i not add you
+volume = 0.5 
 
 def draw_game():
     title_text = title_font.render("Campus of Cosmos", True, "purple")

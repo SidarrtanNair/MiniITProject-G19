@@ -104,20 +104,22 @@ class generateworld:
                 pygame.image.load("Map\\BLOCK\\stone_block_resize.png").convert(), (32, 32)),
             'bush':pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\grass_resize.png").convert_alpha(), (32, 32)),
+            'biggerbush':pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\shrub.png").convert_alpha(), (32,32)),
             'tree_stump': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_wood_stump.png").convert_alpha(), (32, 32)),
             'tree_log': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_wood.png").convert_alpha(), (32, 32)),
             'tree_top': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree.png").convert_alpha(), (32,32)),
+                pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
         }
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
         self.blocks = []  
         self.seed = None
         self.set_seed()
-        self.num_levels = 3
-        self.gen_world(num_levels=self.num_levels)
+        self.number_levels = 3
+        self.gen_world(number_levels=self.number_levels)
         self.init_player()
         self.current_scene = 0  
         self.highlight = False
@@ -131,7 +133,7 @@ class generateworld:
             sprite_path = os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_spriteV1_flipped.png')
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
         animation_list = load_animations(sprite_sheet_image)
-        world_width = (pygame.display.get_surface().get_width() * self.num_levels)
+        world_width = (pygame.display.get_surface().get_width() * self.number_levels)
         self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height, world_width)
         spawn_x = 300
         spawn_y = 300
@@ -144,19 +146,20 @@ class generateworld:
     def set_seed(self):
         self.seed = random.randint(0, 10**9)
 
-    def gen_world(self, num_levels=3):
+    def gen_world(self, number_levels=3):
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
         cols = screen_width // self.block_width
         rows = screen_height // self.block_height
-        for level in range(num_levels):
+        for level in range(number_levels):
             for x in range(cols):
                 noise_value = noise.noise2((x + level * cols) * 0.1, 0)
                 base = rows // 4
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
                 surface_y = screen_height - (height * self.block_height)
+                
                 for y in range(height):
                     y_px = screen_height - (y + 1) * self.block_height
                     if y == height - 1:
@@ -208,17 +211,23 @@ class generateworld:
                                     "texture": self.blocklibrary['tree_log'],
                                     "rect": log_rect
                                 })
-                            top_rect = self.blocklibrary['tree_top'].get_rect(
-                                topleft=(rect.x, ground_y - (tree_height + 2) * self.block_height))
-                            self.blocks.append({
-                                "type": "tree_top",
-                                "texture": self.blocklibrary['tree_top'],
-                                "rect": top_rect
-                            })
+                            treetop_y = ground_y - (tree_height +2) * self.block_height
+                            for dx in [-1 , 0 , 1]:
+                                for dy in [-1,0,1]:
+                                    leaf_rect = self.blocklibrary['tree_top'].get_rect(
+                                        topleft = (rect.x + dx * self.block_width, treetop_y + dy * self.block_height))
+                                    self.blocks.append({
+                                        "type": "tree_top",
+                                        "texture": self.blocklibrary['tree_top'],
+                                        "rect": leaf_rect
+                                    })
+                            
+
+                            
 
     def newseed(self):
         self.seed = random.randint(0, 10**9)
-        self.gen_world(num_levels=self.num_levels)
+        self.gen_world(number_levels=self.number_levels)
         if self.player:
             self.init_player()
 
@@ -288,7 +297,7 @@ class generateworld:
                 self.player.move(left, right, jump)
                 self.player.update()
                 if self.player.rect.right > (self.current_scene + 1) * screen_width:
-                    if self.current_scene < self.num_levels - 1:
+                    if self.current_scene < self.number_levels - 1:
                         self.current_scene += 1
                         self.player.rect.left = self.current_scene * screen_width + 1
                 elif self.player.rect.left < self.current_scene * screen_width:
