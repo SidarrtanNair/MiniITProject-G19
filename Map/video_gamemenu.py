@@ -12,14 +12,14 @@ font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
 
 
-background = pygame.image.load("momentsbeforedisaster.png")
+background = pygame.image.load("Map\BACKGROUND\sforest.png")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))    
 
 STATE = "game"
 volume = 0.5 
-
+world = None
 def draw_game():
-    title_text = title_font.render("Campus of Cosmos", True, "purple")
+    title_text = title_font.render("Campus of Cosmos", True, "white")
     screen.blit(title_text, (WIDTH//2 - title_text.get_width()//2, HEIGHT//3))
 
     menu_btn = pygame.draw.rect(screen, 'light gray', [WIDTH//2-280, HEIGHT-100, 260, 60], 0, 5)
@@ -39,7 +39,7 @@ def draw_game():
 
 # okay this is just the buttons this took forever good lord
 def draw_menu():
-    pygame.draw.rect(screen, 'purple', [0, HEIGHT//6, WIDTH//4, HEIGHT//1.25])
+    pygame.draw.rect(screen, 'light gray', [0, HEIGHT//6, WIDTH//4, HEIGHT//1.25])
 
     new_game_btn = pygame.draw.rect(screen, 'light gray', [0, HEIGHT//6+20, WIDTH//4, 50], 0, 5)
     pygame.draw.rect(screen, 'dark gray', [0, HEIGHT//6+20, WIDTH//4, 50], 5, 5)
@@ -77,17 +77,24 @@ def draw_menu():
 
 # this is just screens for the buttons 
 def draw_new_game():
-    generateworld().run()
-    return "menu"
+    global world
+    world = generateworld()
+    state = world.run()
+    return state
 
 def draw_continue():
-    screen.fill("black")
-    screen.blit(font.render("Continuing Your Game is here", True, "white"), (WIDTH//3, HEIGHT//2))
-    back_btn = pygame.draw.rect(screen, 'light gray', [10, 10, 150, 40], 0, 5)
-    screen.blit(font.render("Back", True, "black"), (20, 15))
-    if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-        return "menu"
-    return "continue"
+    global world
+    if world:
+        state = world.run()
+        return state
+    else:
+        screen.fill("black")
+        screen.blit(font.render("No game to continue", True, "white"), (WIDTH//3, HEIGHT//2))
+        back_btn = pygame.draw.rect(screen, 'light gray', [10, 10, 150, 40], 0, 5)
+        screen.blit(font.render("Back", True, "black"), (20, 15))
+        if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+            return "menu"
+        return "continue"
 
 def draw_settings():
     global volume

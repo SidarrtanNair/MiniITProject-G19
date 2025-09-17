@@ -245,8 +245,8 @@ class generateworld:
                     running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        running = False
-                        pygame.quit()
+                        return "menu"
+                        
                     if event.key == pygame.K_r:
                         self.newseed()
                     if event.key == pygame.K_c:
@@ -322,7 +322,7 @@ class generateworld:
                 self.player.draw(self.screen, camera_x)
             pygame.display.flip()
             self.clock.tick(60)
-        pygame.quit()
+        return "menu"
 
 
 if __name__ == "__main__":
