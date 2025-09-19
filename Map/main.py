@@ -15,6 +15,8 @@ background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 STATE = "game"
 volume = 0.5 
+
+#continuelohic#
 world = None
 
 def draw_game():
@@ -88,6 +90,8 @@ def draw_menu():
         return "game"
 
     return "menu"
+
+#Imrans#
 def pause_menu(screen, frozenbg):
     font = pygame.font.Font(None, 80)
     run = True
@@ -132,6 +136,7 @@ def pause_menu(screen, frozenbg):
                 if exit_btn.collidepoint(pygame.mouse.get_pos()):
                     return "exit"
 
+#Imrans#
 def draw_new_game():
     global world
     from scene import generateworld

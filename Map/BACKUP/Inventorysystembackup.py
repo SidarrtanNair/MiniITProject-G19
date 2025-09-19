@@ -8,7 +8,7 @@ sys.path.append(player_directory)
 
 from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
-
+# =====PLAYER================================================================================================================= #
 class Playeronworld(Player): #1
     def __init__(self, animation_list, blocks, block_width, block_height, world_width,):
         super().__init__(animation_list)
@@ -18,7 +18,7 @@ class Playeronworld(Player): #1
         self.world_width = world_width
         self.health = 100
         
-        
+    #======DamageLogic============#   
     def get_damage(self, amt):
         try:
             self.health -= amt
@@ -26,7 +26,7 @@ class Playeronworld(Player): #1
             self.health = max(0, 0)
         if self.health < 0:
             self.health = 0
-
+    #========HealthLogic===========#
     def get_health(self, amt):
         try:
             self.health += amt
@@ -34,7 +34,7 @@ class Playeronworld(Player): #1
             self.health = 0
         if self.health > 100:
             self.health = 100
-
+    #======CollisionCheck=============#
     def check_collision(self, dx, dy):
         temp_rect = self.rect.copy()
         temp_rect.x += dx
@@ -45,7 +45,7 @@ class Playeronworld(Player): #1
             if temp_rect.colliderect(block["rect"]):
                 return True
         return False
-    
+    #=============ConstantSids========================#
     def update(self):
         current_time = pygame.time.get_ticks()
         if current_time - self.last_update >= self.animation_cooldown:
@@ -53,6 +53,7 @@ class Playeronworld(Player): #1
             self.last_update = current_time
             if self.frame >= len(self.animation_list[self.action]):
                 self.frame = 0
+
         self.image = self.animation_list[self.action][self.frame]
         self.image = pygame.transform.scale(self.image, (self.image.get_width()*SCALE, self.image.get_height()*SCALE))
         if self.flip:
@@ -72,11 +73,11 @@ class Playeronworld(Player): #1
             self.rect.left = 0
         if self.rect.right > self.world_width:
             self.rect.right = self.world_width
-
+    #=============Scenecam===============#
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
         self.draw_health_bar(surf, camera_x) 
-
+    #============blithealth==================#
     def draw_health_bar(self, surf, camera_x):
         bar_width = 40
         bar_height = 6
@@ -85,7 +86,7 @@ class Playeronworld(Player): #1
         pygame.draw.rect(surf, (255,0,0), (x,y,bar_width,bar_height))
         pygame.draw.rect(surf, (0,255,0), (x,y,bar_width * (self.health/100),bar_height))
 
-
+# =====WORLDGEN================================================================================================================= #
 class generateworld:
     def __init__(self, pause_callback = None):
         pygame.init() 
@@ -114,8 +115,10 @@ class generateworld:
             'tree_top': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
         }
+       #==========checkthesize=========#
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
+        
         self.blocks = []  
         self.seed = None
         self.set_seed()
@@ -124,9 +127,10 @@ class generateworld:
         self.init_player()
         self.current_scene = 0  
         self.highlight = False
+        
         self.pause_callback = pause_callback
 
-        # --- Inventory / hotbar setup ---
+        # =====InventorySetup========= #
         
         self.hotbar_keys = {
             pygame.K_3: 'dirt',
@@ -144,7 +148,7 @@ class generateworld:
         self.hotbar_slot_size = 40
         self.hotbar_padding = 6
         self.font = pygame.font.SysFont(None, 20)
-        # ---------------------------------
+
 
     def init_player(self):
         gender = gender_selection_screen()
@@ -319,13 +323,16 @@ class generateworld:
                                 col = int(x // self.block_width)
                                 row = int((self.screen.get_height() - y) // self.block_height)  
                                 y_px = self.screen.get_height() - (row + 1) * self.block_height
+
                                 new_block_rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
                                 occupied = any(b["rect"].colliderect(new_block_rect) for b in self.blocks)
-                                # use selected block type for placement
+                                
                                 selected_type = self.selected_block
                                 selected_texture = self.blocklibrary.get(selected_type, self.blocklibrary['dirt'])
-                                # only place if not colliding with player, not occupied, and inventory has items (if managed)
+                               
                                 inv_ok = True
+
+
                                 if selected_type in self.inventory:
                                     if self.inventory[selected_type] <= 0:
                                         inv_ok = False
@@ -335,12 +342,13 @@ class generateworld:
                                         "texture": selected_texture,
                                         "rect": new_block_rect
                                     })
-                                    # decrement inventory if tracked
+                                    
                                     if selected_type in self.inventory:
                                         try:
                                             self.inventory[selected_type] -= 1
                                         except:
                                             self.inventory[selected_type] = 0
+
             keys = pygame.key.get_pressed()
             if self.player:
                 left = keys[pygame.K_a] 
