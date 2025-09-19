@@ -368,7 +368,7 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-            #dra
+            #drawbar#
             hotbar_slots = list(self.hotbar_keys.values())
             total_slots = len(hotbar_slots)
             slot_w = self.hotbar_slot_size
