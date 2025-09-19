@@ -10,13 +10,14 @@ from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
 
 class Playeronworld(Player): #1
-    def __init__(self, animation_list, blocks, block_width, block_height, world_width):
+    def __init__(self, animation_list, blocks, block_width, block_height, world_width,):
         super().__init__(animation_list)
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
         self.health = 100
+        
         
     def get_damage(self, amt):
         try:
@@ -86,7 +87,7 @@ class Playeronworld(Player): #1
 
 
 class generateworld:
-    def __init__(self):
+    def __init__(self, pause_callback = None):
         pygame.init() 
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
@@ -123,7 +124,7 @@ class generateworld:
         self.init_player()
         self.current_scene = 0  
         self.highlight = False
-
+        self.pause_callback = pause_callback
     def init_player(self):
         gender = gender_selection_screen()
         if gender == 'male':
@@ -200,7 +201,6 @@ class generateworld:
                                 "texture": self.blocklibrary['tree_stump'],
                                 "rect": stump_rect
                             })
-                            # remove bush if it overlaps stump
                             self.blocks = [b for b in self.blocks if not (b["type"] == "bush" and b["rect"].colliderect(stump_rect))]
                             tree_height = random.randint(3, 6)
                             for i in range(tree_height):
@@ -245,7 +245,13 @@ class generateworld:
                     running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        return "menu"
+                        frozenbg = self.screen.copy()
+                        if self.pause_callback:
+                            choice = self.pause_callback(self.screen,frozenbg)
+                            if choice == "exit":
+                                return "menu"
+                        
+
                         
                     if event.key == pygame.K_r:
                         self.newseed()
@@ -322,7 +328,7 @@ class generateworld:
                 self.player.draw(self.screen, camera_x)
             pygame.display.flip()
             self.clock.tick(60)
-        return "menu"
+        return "pause"
 
 
 if __name__ == "__main__":
