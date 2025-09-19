@@ -125,27 +125,7 @@ class generateworld:
         self.current_scene = 0  
         self.highlight = False
         self.pause_callback = pause_callback
-
-        # --- Inventory / hotbar setup ---
         
-        self.hotbar_keys = {
-            pygame.K_3: 'dirt',
-            pygame.K_4: 'grass',
-            pygame.K_5: 'dirtstone',
-            pygame.K_6: 'stone'
-         }
-        self.inventory = {
-            'dirt': 10,
-            'grass': 6,
-            'dirtstone': 4,
-            'stone': 8
-         }
-        self.selected_block = self.hotbar_keys[pygame.K_3]
-        self.hotbar_slot_size = 40
-        self.hotbar_padding = 6
-        self.font = pygame.font.SysFont(None, 20)
-        # ---------------------------------
-
     def init_player(self):
         gender = gender_selection_screen()
         if gender == 'male':
@@ -272,6 +252,8 @@ class generateworld:
                             if choice == "exit":
                                 return "menu"
                         
+
+                        
                     if event.key == pygame.K_r:
                         self.newseed()
                     if event.key == pygame.K_c:
@@ -289,11 +271,6 @@ class generateworld:
                         if event.key == pygame.K_SPACE:
                             self.player.get_damage(10)
                             last_health_change = current_time
-
-            
-                        if event.key in self.hotbar_keys:
-                            self.selected_block = self.hotbar_keys[event.key]
-
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_position = pygame.mouse.get_pos()
                     world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
@@ -304,15 +281,7 @@ class generateworld:
                             if event.button == 1:  
                                 for block in self.blocks:
                                     if block["rect"].collidepoint(world_mouse):
-                                    
-                                        removed_block = block
                                         self.blocks.remove(block)
-                                        bloktype = removed_block.get("type")
-                                        if bloktype in self.inventory:
-                                            try:
-                                                self.inventory[bloktype] += 1
-                                            except:
-                                                self.inventory[bloktype] = 1
                                         break  
                             elif event.button == 3:  
                                 x, y = world_mouse
@@ -321,26 +290,12 @@ class generateworld:
                                 y_px = self.screen.get_height() - (row + 1) * self.block_height
                                 new_block_rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
                                 occupied = any(b["rect"].colliderect(new_block_rect) for b in self.blocks)
-                                # use selected block type for placement
-                                selected_type = self.selected_block
-                                selected_texture = self.blocklibrary.get(selected_type, self.blocklibrary['dirt'])
-                                # only place if not colliding with player, not occupied, and inventory has items (if managed)
-                                inv_ok = True
-                                if selected_type in self.inventory:
-                                    if self.inventory[selected_type] <= 0:
-                                        inv_ok = False
-                                if not new_block_rect.colliderect(self.player.rect) and not occupied and inv_ok:
+                                if not new_block_rect.colliderect(self.player.rect) and not occupied:
                                     self.blocks.append({
-                                        "type": selected_type,
-                                        "texture": selected_texture,
+                                        "type": "dirt",
+                                        "texture": self.blocklibrary['dirt'],
                                         "rect": new_block_rect
                                     })
-                                    # decrement inventory if tracked
-                                    if selected_type in self.inventory:
-                                        try:
-                                            self.inventory[selected_type] -= 1
-                                        except:
-                                            self.inventory[selected_type] = 0
             keys = pygame.key.get_pressed()
             if self.player:
                 left = keys[pygame.K_a] 
@@ -368,37 +323,6 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-            #dra
-            hotbar_slots = list(self.hotbar_keys.values())
-            total_slots = len(hotbar_slots)
-            slot_w = self.hotbar_slot_size
-            slot_h = self.hotbar_slot_size
-            hotbar_w = total_slots * slot_w + (total_slots - 1) * self.hotbar_padding
-            hotbar_x = (screen_width - hotbar_w) // 2
-            hotbar_y = self.screen.get_height() - slot_h - 20
-
-            for i, bloktype in enumerate(hotbar_slots):
-                sx = hotbar_x + i * (slot_w + self.hotbar_padding)
-                sy = hotbar_y
-                rect = pygame.Rect(sx, sy, slot_w, slot_h)
-                pygame.draw.rect(self.screen, (50,50,50), rect)  
-                
-                if bloktype == self.selected_block:
-                    pygame.draw.rect(self.screen, (255,215,0), rect, 3)  
-                else:
-                    pygame.draw.rect(self.screen, (0,0,0), rect, 2)
-                
-                tex = self.blocklibrary.get(bloktype)
-                if tex:
-                    icon = pygame.transform.scale(tex, (slot_w - 8, slot_h - 8))
-                    icon_rect = icon.get_rect(center=rect.center)
-                    self.screen.blit(icon, icon_rect)
-                
-                count = self.inventory.get(bloktype, 0)
-                count_surf = self.font.render(str(count), True, (255,255,255))
-                count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
-                self.screen.blit(count_surf, count_rect)
-
             if self.player:
                 if current_time - last_health_change <= health_display_time:
                     self.player.draw_health_bar(self.screen, camera_x)
