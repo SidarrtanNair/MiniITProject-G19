@@ -113,7 +113,7 @@ class generateworld:
             'tree_log': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_wood.png").convert_alpha(), (32, 32)),
             'tree_top': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
+                pygame.image.load("Map\\BLOCK\\bushpreview32.png").convert_alpha(), (32,32)),
         }
        #==========checkthesize=========#
         self.block_width = self.blocklibrary['dirt'].get_width()
