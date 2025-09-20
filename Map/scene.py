@@ -95,6 +95,7 @@ class generateworld:
         self.clock = pygame.time.Clock()
         self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
+
         self.blocklibrary = {
             'dirt': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\dirt_block_resize.png").convert(), (32, 32)),
@@ -131,24 +132,28 @@ class generateworld:
         self.pause_callback = pause_callback
 
         # =====InventorySetup========= #
-        
         self.hotbar_keys = {
             pygame.K_3: 'dirt',
             pygame.K_4: 'grass',
-            pygame.K_5: 'dirtstone',
-            pygame.K_6: 'stone'
-         }
-        self.inventory = {
+            pygame.K_5: 'stone',
+            pygame.K_6: 'tree_log',
+            pygame.K_7: 'tree_top'}
+        self.hotbar_slots = list(self.hotbar_keys.values())
+        self.selected_index = 0
+        self.selected_block = self.hotbar_slots[self.selected_index]
+
+        self.inventory = { 
             'dirt': 10,
             'grass': 6,
-            'dirtstone': 4,
-            'stone': 8
-         }
+            'stone': 8 ,
+           'tree_log': 0,
+           'tree_top':0,}
+        
         self.selected_block = self.hotbar_keys[pygame.K_3]
         self.hotbar_slot_size = 40
         self.hotbar_padding = 6
         self.font = pygame.font.SysFont(None, 20)
-
+        
 
     def init_player(self):
         gender = gender_selection_screen()
@@ -348,6 +353,12 @@ class generateworld:
                                             self.inventory[selected_type] -= 1
                                         except:
                                             self.inventory[selected_type] = 0
+                        if event.button ==4:
+                            self.selected_index = (self.selected_index -1) % len(self.hotbar_slots)
+                            self.selected_block = self.hotbar_slots[self.selected_index]
+                        elif event.button == 5 :
+                            self.selected_index = (self.selected_index +1) % len(self.hotbar_slots)
+                            self.selected_block = self.hotbar_slots[self.selected_index]
 
             keys = pygame.key.get_pressed()
             if self.player:
@@ -406,7 +417,7 @@ class generateworld:
                 count_surf = self.font.render(str(count), True, (255,255,255))
                 count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
                 self.screen.blit(count_surf, count_rect)
-
+#Heathdissapearlogic#
             if self.player:
                 if current_time - last_health_change <= health_display_time:
                     self.player.draw_health_bar(self.screen, camera_x)
