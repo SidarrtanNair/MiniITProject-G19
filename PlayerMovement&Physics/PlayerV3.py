@@ -35,19 +35,20 @@ JUMP = 2
 clock = pygame.time.Clock()
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-def load_animations(sprite_sheet_image):
-    """Load animations from a sprite sheet image and return animation_list."""
+def load_animations(sprite_sheet_image, color_key=(0,0,0)):
     sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
     animation_list = []
     step_counter = 0
+
     for animation_len in animation_steps:
         temp_img_list = []
-        for _ in range(animation_len): 
-            temp_img_list.append(sprite_sheet.get_image(step_counter, 104, 104, 0.3, 'black'))
+        for _ in range(animation_len):
+            # Pass color_key; None if the PNG has alpha transparency
+            temp_img_list.append(sprite_sheet.get_image(step_counter, 104, 104, 0.3, color_key))
             step_counter += 1
         animation_list.append(temp_img_list)
-    return animation_list
 
+    return animation_list
 class Player:
     def __init__(self, animation_list):
         self.animation_list = animation_list

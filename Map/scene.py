@@ -76,15 +76,22 @@ class Playeronworld(Player): #1
     #=============Scenecam===============#
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
-        self.draw_health_bar(surf, camera_x) 
     #============blithealth==================#
-    def draw_health_bar(self, surf, camera_x):
-        bar_width = 40
+    def draw_health_bar(self, surf, camera_x, alpha=255):
+        bar_width = 100
         bar_height = 6
         x = self.rect.centerx + camera_x - bar_width//2
         y = self.rect.top - 15
-        pygame.draw.rect(surf, (255,0,0), (x,y,bar_width,bar_height))
-        pygame.draw.rect(surf, (0,255,0), (x,y,bar_width * (self.health/100),bar_height))
+
+        redback = pygame.Surface((bar_width, bar_height), pygame.SRCALPHA)
+        redback.fill((255, 0, 0, alpha))
+        surf.blit(redback, (x, y))
+
+        green_width = int(bar_width * (self.health/100))
+        if green_width > 0:
+            greenback = pygame.Surface((green_width, bar_height), pygame.SRCALPHA)
+            greenback.fill((0, 255, 0, alpha))
+            surf.blit(greenback, (x, y))
 
 # =====WORLDGEN================================================================================================================= #
 class generateworld:
@@ -123,7 +130,7 @@ class generateworld:
         self.blocks = []  
         self.seed = None
         self.set_seed()
-        self.number_levels = 3
+        self.number_levels = 5
         self.gen_world(number_levels=self.number_levels)
         self.init_player()
         self.current_scene = 0  
@@ -367,14 +374,38 @@ class generateworld:
                 jump = keys[pygame.K_SPACE] 
                 self.player.move(left, right, jump)
                 self.player.update()
+
+                #=========Cameralogic=======
+                screen_width = self.screen.get_width()
+                world_width = screen_width * self.number_levels
+
+                # Move to next scene if player crosses right edge
                 if self.player.rect.right > (self.current_scene + 1) * screen_width:
                     if self.current_scene < self.number_levels - 1:
                         self.current_scene += 1
+                        # Snap player to nearest ground in the new scene
+                        new_scene_blocks = [b for b in self.blocks if (self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width)]
+                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0, self.player.vel_y))], default=self.player.rect.bottom)
                         self.player.rect.left = self.current_scene * screen_width + 1
+                        self.player.rect.bottom = player_bottom_y
+
+                # Move to previous scene if player crosses left edge
                 elif self.player.rect.left < self.current_scene * screen_width:
                     if self.current_scene > 0:
                         self.current_scene -= 1
-                        self.player.rect.right = (self.current_scene + 1) * screen_width - 1
+                        # Snap player to nearest ground in the new scene
+                        new_scene_blocks = [b for b in self.blocks if (self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width)]
+                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0, self.player.vel_y))], default=self.player.rect.bottom)
+                        self.player.rect.right = self.current_scene * screen_width + screen_width - 1
+                        self.player.rect.bottom = player_bottom_y
+
+                # Clamp player position to world bounds
+                self.player.rect.left = max(0, self.player.rect.left)
+                self.player.rect.right = min(world_width, self.player.rect.right)
+
+                # Camera X offset for drawing
+                camera_x = -self.current_scene * screen_width
+
 
             self.screen.blit(self.background,(0,0))
             for block in self.blocks:
