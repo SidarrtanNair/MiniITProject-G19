@@ -35,7 +35,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 def load_base_animations(sprite_sheet_image):
     """Load base animations (idle, walk, jump) from main sprite sheet."""
-    sprite_sheet = spritesheet.spritesheet(sprite_sheet_image)
+    sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
     animation_list = []
     step_counter = 0
     for animation_len in base_animation_steps:
@@ -51,7 +51,7 @@ def load_action_animations(attack_image, mine_image, sprite_width, sprite_height
     action_animations = []
     
     # Load attack animation
-    attack_sheet = spritesheet.spritesheet(attack_image)
+    attack_sheet = spritesheet.SpriteSheet(attack_image)
     attack_frames = []
     for i in range(action_animation_steps[0]):  # attack frames
         frame = attack_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
@@ -59,7 +59,7 @@ def load_action_animations(attack_image, mine_image, sprite_width, sprite_height
     action_animations.append(attack_frames)
     
     # Load mine animation
-    mine_sheet = spritesheet.spritesheet(mine_image)
+    mine_sheet = spritesheet.SpriteSheet(mine_image)
     mine_frames = []
     for i in range(action_animation_steps[1]):  # mine frames
         frame = mine_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')

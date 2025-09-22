@@ -1,25 +1,13 @@
 import pygame
 import random
 import os
+from spritesheet import SpriteSheet  # Import the SpriteSheet class
 
 # Initialize pygame
 pygame.init()
 
 #file path
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
-
-# SpriteSheet class definition (was missing)
-class SpriteSheet():
-    def __init__(self, image):
-        self.sheet = image
-    
-    def get_image(self, frame, width, height, scale, colour):
-        image = pygame.Surface((width, height)).convert_alpha()
-        image.blit(self.sheet, (0, 0), ((frame * width), 0, width, height))
-        image = pygame.transform.scale(image, (width * scale, height * scale))
-        image.set_colorkey(colour)
-        return image
 
 infoObject = pygame.display.Info()
 SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h

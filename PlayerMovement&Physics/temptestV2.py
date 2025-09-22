@@ -2,7 +2,8 @@ import pygame
 import sys
 import os
 from PlayerV4 import Player, gender_selection_screen, load_base_animations, load_action_animations, SCREEN_WIDTH, SCREEN_HEIGHT, BG, FPS, clock, script_dir
-from Enemy import Enemy, SpriteSheet
+from Enemy import Enemy
+from spritesheet import SpriteSheet
 
 pygame.init()
 
