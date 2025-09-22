@@ -21,7 +21,7 @@ infoObject = pygame.display.Info()
 SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
 
-SCALE = 2
+SCALE = 4
 FPS = 60
 
 # Boss States with key bindings (keys 1-7)
@@ -253,7 +253,7 @@ def main():
     
     # Create boss
     boss_x = SCREEN_WIDTH // 2 - 64
-    boss_y = SCREEN_HEIGHT - 300
+    boss_y = SCREEN_HEIGHT - 600
     boss = Boss(boss_x, boss_y)
     
     # Game loop variables

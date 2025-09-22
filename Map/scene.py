@@ -8,8 +8,6 @@ sys.path.append(player_directory)
 
 from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
-from Enemy import Enemy
-from Boss import Boss 
 # =====PLAYER================================================================================================================= #
 class Playeronworld(Player): #1
     def __init__(self, animation_list, blocks, block_width, block_height, world_width,):
@@ -207,9 +205,12 @@ class generateworld:
         #====Timerforfun===========#
         self.start_time = pygame.time.get_ticks()
 
+<<<<<<< HEAD
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")  
         pygame.mixer.music.set_volume(0.3)  
         pygame.mixer.music.play(-1)
+=======
+>>>>>>> 8c1c1f3 (test enemy and boss)
 
     def init_player(self):
         gender = gender_selection_screen()
@@ -335,6 +336,7 @@ class generateworld:
                 self.hotbar_slots[i] = item
                 self.hotbar_counts[i] = amount
                 return
+<<<<<<< HEAD
     def consume_from_hotbar(self, item, amount):
         remaining = amount
         for i in range(2, 9):  
@@ -350,19 +352,29 @@ class generateworld:
         consumed = amount - remaining
         return consumed
 
+=======
+>>>>>>> 8c1c1f3 (test enemy and boss)
                 
     def draw_inventory(self):
         overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 180))
         self.screen.blit(overlay, (0,0))
 
+<<<<<<< HEAD
         #=======INVGRID===========#
+=======
+        # center inventory grid
+>>>>>>> 8c1c1f3 (test enemy and boss)
         grid_width = self.inventory_cols * (self.inventory_slot_size + self.inventory_padding) - self.inventory_padding
         grid_height = self.inventory_rows * (self.inventory_slot_size + self.inventory_padding) - self.inventory_padding
         start_x = (self.screen.get_width() - grid_width) // 2
         start_y = (self.screen.get_height() - grid_height) // 2
 
+<<<<<<< HEAD
         #==========SLOTCON===========#
+=======
+        # draw slots
+>>>>>>> 8c1c1f3 (test enemy and boss)
         slot_index = 0
         for row in range(self.inventory_rows):
             for col in range(self.inventory_cols):
@@ -431,6 +443,7 @@ class generateworld:
                     # ===== Hotbar number keys =====
                     if pygame.K_1 <= event.key <= pygame.K_9:
                         self.selected_index = event.key - pygame.K_1
+<<<<<<< HEAD
 
                 # ===== Crafting click =====
                 if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -458,6 +471,27 @@ class generateworld:
                                     self.add_to_hotbar("wood_planks", 4)
                                     self.inventory["wood_planks"] += 4
 
+=======
+
+                # ===== Crafting click =====
+                if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mx, my = pygame.mouse.get_pos()
+                    start_y = 40
+                    idx = self.crafting_scroll
+                    for i in range(self.crafting_visible):
+                        if idx >= len(self.recipes):
+                            break
+                        item = list(self.recipes.keys())[idx]
+                        reqs = self.recipes[item]
+                        rect = pygame.Rect(20, start_y + i*30, 160, 30)
+                        if rect.collidepoint(mx, my):
+                            if all(self.inventory.get(mat, 0) >= amt for mat, amt in reqs.items()):
+                                for mat, amt in reqs.items():
+                                    self.inventory[mat] -= amt
+                                if item == "wood_planks":
+                                    self.add_to_hotbar("wood_planks", 4)
+                                    self.inventory["wood_planks"] += 4
+>>>>>>> 8c1c1f3 (test enemy and boss)
                         idx += 1
                 
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
@@ -509,7 +543,11 @@ class generateworld:
                                                 if self.hotbar_counts[i] == 0:
                                                     self.hotbar_slots[i] = None
                                                 break
+<<<<<<< HEAD
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button ==4:
+=======
+                        if event.button ==4:
+>>>>>>> 8c1c1f3 (test enemy and boss)
                             self.selected_index = (self.selected_index -1)
             keys = pygame.key.get_pressed()
             if self.player and not self.show_inventory or self.show_crafting:
@@ -625,7 +663,11 @@ class generateworld:
                         break
                     item = list(self.recipes.keys())[idx]
                     reqs = self.recipes[item]
+<<<<<<< HEAD
                     craftable = all(self.inventory.get(mat, 0) >= amount for mat, amount in reqs.items())
+=======
+                    craftable = all(self.inventory.get(mat, 0) >= amt for mat, amt in reqs.items())
+>>>>>>> 8c1c1f3 (test enemy and boss)
                     color = (255,255,255) if craftable else (150,50,50)
                     
                     if item == "wood_planks":
