@@ -115,7 +115,7 @@ class generateworld:
             'bush':pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\grass_resize.png").convert_alpha(), (32, 32)),
             'biggerbush':pygame.transform.scale(
-                pygame.image.load("Map\BLOCK\shrub.png").convert_alpha(), (32,32)),
+                pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
             'tree_stump': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_wood_stump.png").convert_alpha(), (32, 32)),
             'tree_log': pygame.transform.scale(
@@ -138,28 +138,46 @@ class generateworld:
         
         self.pause_callback = pause_callback
 
-        # =====InventorySetup========= #
-        self.hotbar_keys = {
-            pygame.K_3: 'dirt',
-            pygame.K_4: 'grass',
-            pygame.K_5: 'stone',
-            pygame.K_6: 'tree_log',
-            pygame.K_7: 'tree_top'}
-        self.hotbar_slots = list(self.hotbar_keys.values())
-        self.selected_index = 0
-        self.selected_block = self.hotbar_slots[self.selected_index]
-
-        self.inventory = { 
-            'dirt': 10,
-            'grass': 6,
-            'stone': 8 ,
-           'tree_log': 0,
-           'tree_top':0,}
-        
-        self.selected_block = self.hotbar_keys[pygame.K_3]
+        # =====Inventory/Hotbar Setup========= #
+        self.hotbar_slots = [None] * 9
+        self.hotbar_counts = [0] * 9
         self.hotbar_slot_size = 40
         self.hotbar_padding = 6
         self.font = pygame.font.SysFont(None, 20)
+       
+        self.show_inventory = False
+        self.inventory_cols = 9
+        self.inventory_rows = 4
+        self.inventory_slot_size = 48
+        self.inventory_padding = 8
+        self.inventory_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+
+        # Reserve slots 0 and 1 for tools (left empty)
+        self.hotbar_slots[0] = None
+        self.hotbar_slots[1] = None
+        self.hotbar_counts[0] = 0
+        self.hotbar_counts[1] = 0
+
+        # inventory totals
+        self.inventory = { 
+            'dirt': 0,
+            'grass': 0,
+            'stone': 0 ,
+            'tree_log': 0,
+            'tree_top':0,
+            'wood_planks': 0
+        }
+        
+        self.selected_index = 2  # start at slot 3
+
+        # ===== Crafting System ===== #
+        self.show_crafting = False
+        self.recipes = {
+            "wood_planks": {"tree_log": 1}
+        }
+        self.crafting_font = pygame.font.SysFont(None, 24)
+        self.crafting_scroll = 0
+        self.crafting_visible = 6
         
 
     def init_player(self):
@@ -260,17 +278,62 @@ class generateworld:
                                     })
                             
 
-                            
-
     def newseed(self):
         self.seed = random.randint(0, 10**9)
         self.gen_world(number_levels=self.number_levels)
         if self.player:
             self.init_player()
 
+    def add_to_hotbar(self, item, amount=1):
+        # Try stacking if slot already has the item
+        for i in range(2,9):
+            if self.hotbar_slots[i] == item:
+                self.hotbar_counts[i] += amount
+                return
+        # Otherwise put it in first empty slot
+        for i in range(2,9):
+            if self.hotbar_slots[i] is None:
+                self.hotbar_slots[i] = item
+                self.hotbar_counts[i] = amount
+                return
+                
+    def draw_inventory(self):
+        overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0,0))
+
+        # center inventory grid
+        grid_width = self.inventory_cols * (self.inventory_slot_size + self.inventory_padding) - self.inventory_padding
+        grid_height = self.inventory_rows * (self.inventory_slot_size + self.inventory_padding) - self.inventory_padding
+        start_x = (self.screen.get_width() - grid_width) // 2
+        start_y = (self.screen.get_height() - grid_height) // 2
+
+        # draw slots
+        slot_index = 0
+        for row in range(self.inventory_rows):
+            for col in range(self.inventory_cols):
+                slot_x = start_x + col * (self.inventory_slot_size + self.inventory_padding)
+                slot_y = start_y + row * (self.inventory_slot_size + self.inventory_padding)
+                rect = pygame.Rect(slot_x, slot_y, self.inventory_slot_size, self.inventory_slot_size)
+                pygame.draw.rect(self.screen, (180,180,180), rect, 2)
+
+                if slot_index < len(self.inventory):
+                    block = list(self.inventory.keys())[slot_index]
+                    count = self.inventory[block]
+
+                    if block in self.blocklibrary:
+                        img = self.blocklibrary[block]
+                        img = pygame.transform.scale(img, (self.inventory_slot_size-8, self.inventory_slot_size-8))
+                        self.screen.blit(img, (slot_x+4, slot_y+4))
+
+                    if count > 0:
+                        txt = self.font.render(str(count), True, (255,255,255))
+                        self.screen.blit(txt, (slot_x+self.inventory_slot_size-18, slot_y+self.inventory_slot_size-18))
+                slot_index += 1
+
     def run(self):
         running = True
-        radius = 5 * self.block_width 
+        radius = 7 * self.block_width 
         health_display_time = 3000  
         last_health_change = 0  
         screen_width = self.screen.get_width()
@@ -287,11 +350,16 @@ class generateworld:
                             choice = self.pause_callback(self.screen,frozenbg)
                             if choice == "exit":
                                 return "menu"
+                    if event.key == pygame.K_TAB :
+                        self.show_inventory = not self.show_inventory
+                    
                         
                     if event.key == pygame.K_r:
                         self.newseed()
                     if event.key == pygame.K_c:
-                        self.highlight = not self.highlight
+                        self.show_crafting = not self.show_crafting
+                        if self.show_crafting:
+                            self.crafting_scroll = 0
                     if self.player:
                         if event.key == pygame.K_h:
                             self.player.health = min(100, self.player.health+10)
@@ -305,12 +373,31 @@ class generateworld:
                         if event.key == pygame.K_SPACE:
                             self.player.get_damage(10)
                             last_health_change = current_time
+                    # ===== Hotbar number keys =====
+                    if pygame.K_1 <= event.key <= pygame.K_9:
+                        self.selected_index = event.key - pygame.K_1
 
-            
-                        if event.key in self.hotbar_keys:
-                            self.selected_block = self.hotbar_keys[event.key]
-
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                # ===== Crafting click =====
+                if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mx, my = pygame.mouse.get_pos()
+                    start_y = 40
+                    idx = self.crafting_scroll
+                    for i in range(self.crafting_visible):
+                        if idx >= len(self.recipes):
+                            break
+                        item = list(self.recipes.keys())[idx]
+                        reqs = self.recipes[item]
+                        rect = pygame.Rect(20, start_y + i*30, 160, 30)
+                        if rect.collidepoint(mx, my):
+                            if all(self.inventory.get(mat, 0) >= amt for mat, amt in reqs.items()):
+                                for mat, amt in reqs.items():
+                                    self.inventory[mat] -= amt
+                                if item == "wood_planks":
+                                    self.add_to_hotbar("wood_planks", 4)
+                                    self.inventory["wood_planks"] += 4
+                        idx += 1
+                
+                if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
                     mouse_position = pygame.mouse.get_pos()
                     world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
                     if self.player:
@@ -320,15 +407,12 @@ class generateworld:
                             if event.button == 1:  
                                 for block in self.blocks:
                                     if block["rect"].collidepoint(world_mouse):
-                                    
                                         removed_block = block
                                         self.blocks.remove(block)
                                         bloktype = removed_block.get("type")
                                         if bloktype in self.inventory:
-                                            try:
-                                                self.inventory[bloktype] += 1
-                                            except:
-                                                self.inventory[bloktype] = 1
+                                            self.inventory[bloktype] += 1
+                                            self.add_to_hotbar(bloktype, 1)
                                         break  
                             elif event.button == 3:  
                                 x, y = world_mouse
@@ -339,36 +423,33 @@ class generateworld:
                                 new_block_rect = self.blocklibrary['dirt'].get_rect(topleft=(col * self.block_width, y_px))
                                 occupied = any(b["rect"].colliderect(new_block_rect) for b in self.blocks)
                                 
-                                selected_type = self.selected_block
+                                selected_type = self.hotbar_slots[self.selected_index]
+                                if selected_type is None:
+                                    selected_type = "dirt"
                                 selected_texture = self.blocklibrary.get(selected_type, self.blocklibrary['dirt'])
                                
                                 inv_ok = True
+                                if selected_type in self.inventory and self.inventory[selected_type] <= 0:
+                                    inv_ok = False
 
-
-                                if selected_type in self.inventory:
-                                    if self.inventory[selected_type] <= 0:
-                                        inv_ok = False
                                 if not new_block_rect.colliderect(self.player.rect) and not occupied and inv_ok:
                                     self.blocks.append({
                                         "type": selected_type,
                                         "texture": selected_texture,
                                         "rect": new_block_rect
                                     })
-                                    
                                     if selected_type in self.inventory:
-                                        try:
-                                            self.inventory[selected_type] -= 1
-                                        except:
-                                            self.inventory[selected_type] = 0
+                                        self.inventory[selected_type] -= 1
+                                        for i in range(2,9):
+                                            if self.hotbar_slots[i] == selected_type:
+                                                self.hotbar_counts[i] = max(0, self.hotbar_counts[i]-1)
+                                                if self.hotbar_counts[i] == 0:
+                                                    self.hotbar_slots[i] = None
+                                                break
                         if event.button ==4:
-                            self.selected_index = (self.selected_index -1) % len(self.hotbar_slots)
-                            self.selected_block = self.hotbar_slots[self.selected_index]
-                        elif event.button == 5 :
-                            self.selected_index = (self.selected_index +1) % len(self.hotbar_slots)
-                            self.selected_block = self.hotbar_slots[self.selected_index]
-
+                            self.selected_index = (self.selected_index -1)
             keys = pygame.key.get_pressed()
-            if self.player:
+            if self.player and not self.show_inventory or self.show_crafting:
                 left = keys[pygame.K_a] 
                 right = keys[pygame.K_d] 
                 jump = keys[pygame.K_SPACE] 
@@ -379,23 +460,19 @@ class generateworld:
                 screen_width = self.screen.get_width()
                 world_width = screen_width * self.number_levels
 
-                # Move to next scene if player crosses right edge
                 if self.player.rect.right > (self.current_scene + 1) * screen_width:
                     if self.current_scene < self.number_levels - 1:
                         self.current_scene += 1
-                        # Snap player to nearest ground in the new scene
                         new_scene_blocks = [b for b in self.blocks if (self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width)]
-                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0, self.player.vel_y))], default=self.player.rect.bottom)
+                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))], default=self.player.rect.bottom)
                         self.player.rect.left = self.current_scene * screen_width + 1
                         self.player.rect.bottom = player_bottom_y
 
-                # Move to previous scene if player crosses left edge
                 elif self.player.rect.left < self.current_scene * screen_width:
                     if self.current_scene > 0:
                         self.current_scene -= 1
-                        # Snap player to nearest ground in the new scene
                         new_scene_blocks = [b for b in self.blocks if (self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width)]
-                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0, self.player.vel_y))], default=self.player.rect.bottom)
+                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))], default=self.player.rect.bottom)
                         self.player.rect.right = self.current_scene * screen_width + screen_width - 1
                         self.player.rect.bottom = player_bottom_y
 
@@ -406,6 +483,11 @@ class generateworld:
                 # Camera X offset for drawing
                 camera_x = -self.current_scene * screen_width
 
+            # ================= HOTBAR NUMBER KEYS ============== #
+            pressed = pygame.key.get_pressed()
+            for n in range(1,10):
+                if pressed[getattr(pygame, f"K_{n}")]:
+                    self.selected_index = n-1
 
             self.screen.blit(self.background,(0,0))
             for block in self.blocks:
@@ -418,8 +500,8 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-            #drawbar#
-            hotbar_slots = list(self.hotbar_keys.values())
+            #drawbar#==============
+            hotbar_slots = self.hotbar_slots
             total_slots = len(hotbar_slots)
             slot_w = self.hotbar_slot_size
             slot_h = self.hotbar_slot_size
@@ -433,26 +515,68 @@ class generateworld:
                 rect = pygame.Rect(sx, sy, slot_w, slot_h)
                 pygame.draw.rect(self.screen, (50,50,50), rect)  
                 
-                if bloktype == self.selected_block:
+                if i == self.selected_index:
                     pygame.draw.rect(self.screen, (255,215,0), rect, 3)  
                 else:
                     pygame.draw.rect(self.screen, (0,0,0), rect, 2)
                 
-                tex = self.blocklibrary.get(bloktype)
+                tex = None
+                if bloktype and bloktype in self.blocklibrary:
+                    tex = self.blocklibrary.get(bloktype)
+                elif bloktype == "wood_planks":
+                    # no wood_planks texture provided; show a scaled tree_log as placeholder
+                    tex = self.blocklibrary.get('tree_log')
+
                 if tex:
                     icon = pygame.transform.scale(tex, (slot_w - 8, slot_h - 8))
                     icon_rect = icon.get_rect(center=rect.center)
                     self.screen.blit(icon, icon_rect)
                 
-                count = self.inventory.get(bloktype, 0)
+                # count display: prefer per-slot count if present, else show inventory amount
+                count = 0
+                if bloktype:
+                    if self.hotbar_slots[i] == bloktype and self.hotbar_counts[i] > 0:
+                        count = self.hotbar_counts[i]
+                    else:
+                        count = self.inventory.get(bloktype, 0)
                 count_surf = self.font.render(str(count), True, (255,255,255))
                 count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
                 self.screen.blit(count_surf, count_rect)
-#Heathdissapearlogic#
+                #Heathdissapearlogic#
             if self.player:
                 if current_time - last_health_change <= health_display_time:
                     self.player.draw_health_bar(self.screen, camera_x)
                 self.player.draw(self.screen, camera_x)
+
+           
+            if self.show_crafting:
+                panel_width = 200
+                panel_height = self.screen.get_height()
+                panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+                panel.fill((30,30,30,180))
+                self.screen.blit(panel, (0,0))
+
+                start_y = 40
+                idx = self.crafting_scroll
+                for i in range(self.crafting_visible):
+                    if idx >= len(self.recipes):
+                        break
+                    item = list(self.recipes.keys())[idx]
+                    reqs = self.recipes[item]
+                    craftable = all(self.inventory.get(mat, 0) >= amt for mat, amt in reqs.items())
+                    color = (255,255,255) if craftable else (150,50,50)
+                    
+                    if item == "wood_planks":
+                        text = f"{item} x4: tree_log x1"
+                    else:
+                        text = f"{item}: " + ", ".join([f"{m}x{a}" for m,a in reqs.items()])
+
+                    txt = self.crafting_font.render(text, True, color)
+                    self.screen.blit(txt, (20, start_y + i*30))
+                    idx += 1
+            if self.show_inventory:
+                self.draw_inventory()
+
             pygame.display.flip()
             self.clock.tick(60)
         return "pause"
