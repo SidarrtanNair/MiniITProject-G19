@@ -130,7 +130,7 @@ class generateworld:
         self.blocks = []  
         self.seed = None
         self.set_seed()
-        self.number_levels = 5
+        self.number_levels = 9
         self.gen_world(number_levels=self.number_levels)
         self.init_player()
         self.current_scene = 0  
@@ -152,7 +152,6 @@ class generateworld:
         self.inventory_padding = 8
         self.inventory_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
 
-        # Reserve slots 0 and 1 for tools (left empty)
         self.hotbar_slots[0] = None
         self.hotbar_slots[1] = None
         self.hotbar_counts[0] = 0
@@ -168,17 +167,20 @@ class generateworld:
             'wood_planks': 0
         }
         
-        self.selected_index = 2  # start at slot 3
+        self.selected_index = 2 
 
         # ===== Crafting System ===== #
         self.show_crafting = False
         self.recipes = {
             "wood_planks": {"tree_log": 1}
         }
-        self.crafting_font = pygame.font.SysFont(None, 24)
+        self.crafting_font = pygame.font.SysFont(None, 32)
         self.crafting_scroll = 0
         self.crafting_visible = 6
         
+        #====Timerforfun===========#
+        self.start_time = pygame.time.get_ticks()
+
 
     def init_player(self):
         gender = gender_selection_screen()
@@ -277,7 +279,6 @@ class generateworld:
                                         "rect": leaf_rect
                                     })
                             
-
     def newseed(self):
         self.seed = random.randint(0, 10**9)
         self.gen_world(number_levels=self.number_levels)
@@ -285,12 +286,11 @@ class generateworld:
             self.init_player()
 
     def add_to_hotbar(self, item, amount=1):
-        # Try stacking if slot already has the item
         for i in range(2,9):
             if self.hotbar_slots[i] == item:
                 self.hotbar_counts[i] += amount
                 return
-        # Otherwise put it in first empty slot
+       
         for i in range(2,9):
             if self.hotbar_slots[i] is None:
                 self.hotbar_slots[i] = item
@@ -337,6 +337,7 @@ class generateworld:
         health_display_time = 3000  
         last_health_change = 0  
         screen_width = self.screen.get_width()
+
         while running:
             current_time = pygame.time.get_ticks()
             camera_x = -(self.current_scene * screen_width)
@@ -532,7 +533,6 @@ class generateworld:
                     icon_rect = icon.get_rect(center=rect.center)
                     self.screen.blit(icon, icon_rect)
                 
-                # count display: prefer per-slot count if present, else show inventory amount
                 count = 0
                 if bloktype:
                     if self.hotbar_slots[i] == bloktype and self.hotbar_counts[i] > 0:
@@ -542,7 +542,7 @@ class generateworld:
                 count_surf = self.font.render(str(count), True, (255,255,255))
                 count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
                 self.screen.blit(count_surf, count_rect)
-                #Heathdissapearlogic#
+                #===========Heathdissapearlogic============#
             if self.player:
                 if current_time - last_health_change <= health_display_time:
                     self.player.draw_health_bar(self.screen, camera_x)
@@ -576,6 +576,26 @@ class generateworld:
                     idx += 1
             if self.show_inventory:
                 self.draw_inventory()
+
+
+            # =====TIMER=====#
+            elapsed_ms = current_time - self.start_time
+            minutes = elapsed_ms // 60000
+            seconds = (elapsed_ms % 60000) // 1000
+            hundredths = (elapsed_ms % 1000) // 10  
+
+            
+            self.timer_font = pygame.font.SysFont("Consolas", 26)  
+            time_text = f"{minutes:02}:{seconds:02}:{hundredths:02}"
+            time_surf = self.timer_font.render(time_text, True, (255, 255, 255))
+
+            x_offset = self.screen.get_width() - 120  
+            time_rect = time_surf.get_rect(topleft=(x_offset, 20))
+
+            self.screen.blit(time_surf, time_rect)
+
+
+
 
             pygame.display.flip()
             self.clock.tick(60)
