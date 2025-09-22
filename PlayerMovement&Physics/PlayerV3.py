@@ -61,6 +61,8 @@ class Player:
         self.rect = self.image.get_rect()
         self.rect.bottomleft = (50, SCREEN_HEIGHT - 50)
 
+        self.hitbox = self.rect.inflate(-60, -10) 
+
         self.vel_x = 0
         self.vel_y = 0
         self.speed = 7
@@ -130,6 +132,7 @@ class Player:
             self.rect.left = 0
         if self.rect.right > SCREEN_WIDTH:
             self.rect.right = SCREEN_WIDTH
+        self.hitbox.center = self.rect.center
 
     def move(self, left, right, jump):
         if jump and not self.in_air:
