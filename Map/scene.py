@@ -10,14 +10,16 @@ from PlayerV3 import Player, load_animations, gender_selection_screen , main
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
 # =====PLAYER================================================================================================================= #
 class Playeronworld(Player): #1
-    def __init__(self, animation_list, blocks, block_width, block_height, world_width,):
+    def __init__(self, animation_list, blocks, block_width, block_height, world_width,parent):
         super().__init__(animation_list)
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
         self.health = 100
-        
+        self.parent = parent
+        self.was_in_air = True       
+        self.last_step_time = 0
     #======DamageLogic============#   
     def get_damage(self, amount):
         try:
@@ -75,7 +77,20 @@ class Playeronworld(Player): #1
         if self.rect.right > self.world_width:
             self.rect.right = self.world_width
         self.hitbox.center = self.rect.center
+    
+    # === sounds ===
+    # footsteps (timed, not spam)
+        if self.vel_x != 0 and not self.in_air:
+            if current_time - self.last_step_time > 300:  # 300ms per step
+                pygame.mixer.Channel(1).play(self.parent.sounds["footstep"])
+                self.last_step_time = current_time
 
+        # jump (trigger only at jump start)
+        if self.vel_y < 0 and not self.jump_played:
+            self.parent.sounds["jump"].play()
+            self.jump_played = True
+        if not self.in_air:
+            self.jump_played = False
     #=============Scenecam===============#
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
@@ -98,14 +113,20 @@ class Playeronworld(Player): #1
 
 # =====WORLDGEN================================================================================================================= #
 class generateworld:
-    def __init__(self, pause_callback = None):
+    def __init__(self, pause_callback = None, volume =0.5):
         pygame.init()
         pygame.mixer.init() 
+        self.pause_callback = pause_callback
+        self.music_file = "Map\MusicMan\worldbackground.mp3"
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
         self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
+
+        self.show_fullmap = False
+        self.fullmap_scale = 0.1  # adjust for performance vs detail
+        self.fullmap_surf = None
 
         self.blocklibrary = {
             'aetherium': pygame.transform.scale(
@@ -154,7 +175,7 @@ class generateworld:
         self.blocks = []  
         self.seed = None
         self.set_seed()
-        self.number_levels = 9
+        self.number_levels = 5
         self.gen_world(number_levels=self.number_levels)
         self.init_player()
         self.current_scene = 0  
@@ -205,8 +226,37 @@ class generateworld:
         #====Timerforfun===========#
         self.start_time = pygame.time.get_ticks()
 
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")  
-        pygame.mixer.music.set_volume(0.3)  
+
+        #=======Music=============#
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")   
+        pygame.mixer.music.play(-1)
+        self.volume =volume
+                # ===== Sound Effects ===== #
+        self.sounds = {
+            "footstep": pygame.mixer.Sound("Map\\Sounds\\footstep_grass.mp3"),
+            "jump": pygame.mixer.Sound("Map\\Sounds\\jump.mp3"),
+            "land": pygame.mixer.Sound("Map\\Sounds\\land.mp3"),
+            "block_break": pygame.mixer.Sound("Map\\Sounds\\block_break.mp3"),
+            "block_place": pygame.mixer.Sound("Map\\Sounds\\block_place.mp3"),
+            "leaves": pygame.mixer.Sound("Map\\Sounds\\birds.wav"),
+            "craft": pygame.mixer.Sound("Map\\Sounds\\craft.mp3"),
+            "inv_open": pygame.mixer.Sound("Map\\Sounds\\inventory_open.mp3"),
+            "inv_close": pygame.mixer.Sound("Map\\Sounds\\inventory_close.mp3"),
+            #"hurt": pygame.mixer.Sound("Map\\Sounds\\player_hurt.mp3"),
+            #"heal": pygame.mixer.Sound("Map\\Sounds\\heal.mp3"),
+        }
+            # ===== Sound Volume Control ===== #
+        
+        self.sfx_volume = 0.5  
+        for s in self.sounds.values():
+            s.set_volume(self.sfx_volume)
+
+
+
+
+    def play_music(self):
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
 
     def init_player(self):
@@ -219,7 +269,7 @@ class generateworld:
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
         animation_list = load_animations(sprite_sheet_image)
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
-        self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height, world_width)
+        self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height, world_width, self)
         spawn_x = 300
         spawn_y = 300
         for block in self.blocks:
@@ -237,6 +287,7 @@ class generateworld:
         screen_width, screen_height = self.screen.get_size()
         cols = screen_width // self.block_width
         rows = screen_height // self.block_height
+
         for level in range(number_levels):
             for x in range(cols):
                 noise_value = noise.noise2((x + level * cols) * 0.1, 0)
@@ -244,78 +295,98 @@ class generateworld:
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
                 surface_y = screen_height - (height * self.block_height)
-                
+
                 for y in range(height):
                     y_px = screen_height - (y + 1) * self.block_height
                     if y == height - 1:
                         blocktype = "bush"
-                        texture = self.blocklibrary[blocktype]
-                    elif y == height -2:
+                    elif y == height - 2:
                         blocktype = "grass"
-                        texture = self.blocklibrary[blocktype]
-                    elif y == height - 6 :
+                    elif y == height - 6:
                         blocktype = "dirtstone"
-                        texture = self.blocklibrary[blocktype]
                     elif y < height - 6:
                         blocktype = "stone"
-                        texture = self.blocklibrary[blocktype]
                     else:
                         blocktype = "dirt"
-                        texture = self.blocklibrary[blocktype]
+
+                    texture = self.blocklibrary[blocktype].copy()
+
+                    # shading for depth
                     depth = (y_px - surface_y) // self.block_height
                     if depth > 0:
                         max_depth = 20
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
-                        texture = texture.copy()
                         texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
-                    rect = texture.get_rect(
-                        topleft=((x + level * cols) * self.block_width, y_px))
-                    self.blocks.append({
-                        "type": blocktype,
-                        "texture": texture,
-                        "rect": rect
-                    })
-                    # Inside gen_world, replace the part where you add trees
-                    if blocktype == "grass":
-                        if random.random() < 0.15:
-                            ground_y = rect.y
-                            # Stump
-                            stump_rect = self.blocklibrary['tree_stump'].get_rect(
-                                topleft=(rect.x, ground_y - self.block_height))
-                            self.blocks.append({
-                                "type": "tree_stump",
-                                "texture": self.blocklibrary['tree_stump'],
-                                "rect": stump_rect
-                            })
-                            
-                            self.blocks = [b for b in self.blocks if not (b["type"] == "bush" and b["rect"].colliderect(stump_rect))]
-                            
-                            tree_height = random.randint(3, 6)
-                            for i in range(tree_height):
-                                log_rect = self.blocklibrary['tree_log'].get_rect(
-                                    topleft=(rect.x, ground_y - (i + 2) * self.block_height))
-                                self.blocks.append({
-                                    "type": "tree_log",
-                                    "texture": self.blocklibrary['tree_log'],
-                                    "rect": log_rect
-                                })
-                            
-                            treetop_y = ground_y - (tree_height + 4) * self.block_height
-                            treetop_textures = [
-                                ['tree_topleft','tree_topmiddle', 'tree_topright'],
-                                ['tree_middleleft','tree_middlemiddle','tree_middleright'],
-                                ['tree_botleft', 'tree_botmiddle', 'tree_botright']  
-                            ]
-                            for dy, row in enumerate(treetop_textures):
-                                for dx, tex_name in enumerate(row):
-                                    leaf_rect = self.blocklibrary[tex_name].get_rect(
-                                        topleft=(rect.x + (dx - 1) * self.block_width, treetop_y + dy * self.block_height))
-                                    self.blocks.append({
-                                        "type": "tree_top",
-                                        "texture": self.blocklibrary[tex_name],
-                                        "rect": leaf_rect
-                                    })
-                            
+
+                    rect = texture.get_rect(topleft=((x + level * cols) * self.block_width, y_px))
+                    self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
+
+                    # randomly add trees
+                    if blocktype == "grass" and random.random() < 0.15:
+                        ground_y = rect.y
+                        # stump
+                        stump_rect = self.blocklibrary['tree_stump'].get_rect(topleft=(rect.x, ground_y - self.block_height))
+                        self.blocks.append({"type": "tree_stump", "texture": self.blocklibrary['tree_stump'], "rect": stump_rect})
+
+                        # remove bush underneath
+                        self.blocks = [b for b in self.blocks if not (b["type"] == "bush" and b["rect"].colliderect(stump_rect))]
+
+                        # tree logs
+                        tree_height = random.randint(3, 6)
+                        for i in range(tree_height):
+                            log_rect = self.blocklibrary['tree_log'].get_rect(topleft=(rect.x, ground_y - (i + 2) * self.block_height))
+                            self.blocks.append({"type": "tree_log", "texture": self.blocklibrary['tree_log'], "rect": log_rect})
+
+                        # treetop
+                        treetop_y = ground_y - (tree_height + 4) * self.block_height
+                        treetop_textures = [
+                            ['tree_topleft','tree_topmiddle','tree_topright'],
+                            ['tree_middleleft','tree_middlemiddle','tree_middleright'],
+                            ['tree_botleft','tree_botmiddle','tree_botright']
+                        ]
+                        for dy, row in enumerate(treetop_textures):
+                            for dx, tex_name in enumerate(row):
+                                leaf_rect = self.blocklibrary[tex_name].get_rect(
+                                    topleft=(rect.x + (dx - 1) * self.block_width, treetop_y + dy * self.block_height))
+                                self.blocks.append({"type": "tree_top", "texture": self.blocklibrary[tex_name], "rect": leaf_rect})
+
+        # ===== Build fullmap once after generating all blocks =====
+        # Each block = 1 pixel on minimap
+        world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
+        world_height_blocks = max(block["rect"].bottom for block in self.blocks) // self.block_height
+        self.fullmap_surf = pygame.Surface((world_width_blocks, world_height_blocks))
+
+
+        for block in self.blocks:
+            color = (100, 100, 100)
+            if block["type"] == "grass":
+                color = (0, 200, 0)
+            elif block["type"] == "dirt":
+                color = (139, 69, 19)
+            elif block["type"] == "stone":
+                color = (150, 150, 150)
+            elif block["type"] in ["tree_log", "tree_stump"]:
+                color = (139, 100, 50)
+            elif block["type"] == "tree_top":
+                color = (0, 150, 0)
+            mx = block["rect"].x // self.block_width
+            my = block["rect"].y // self.block_height
+            if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
+                self.fullmap_surf.set_at((mx, my), color)
+
+            # make sure we stay in bounds
+
+
+    def set_sfx_volume(self, volume: float):
+        self.sfx_volume = max(0.0, min(1.0, volume))
+        for s in self.sounds.values():
+            s.set_volume(self.sfx_volume)
+
+    def set_music_volume(self, volume: float):
+        self.music_volume = max(0.0, min(1.0, volume))
+        pygame.mixer.music.set_volume(self.music_volume)
+    
+
     def newseed(self):
         self.seed = random.randint(0, 10**9)
         self.gen_world(number_levels=self.number_levels)
@@ -400,11 +471,19 @@ class generateworld:
                     if event.key == pygame.K_ESCAPE:
                         frozenbg = self.screen.copy()
                         if self.pause_callback:
+                            pygame.mixer_music.pause()
                             choice = self.pause_callback(self.screen,frozenbg)
+                            pygame.mixer_music.unpause()
                             if choice == "exit":
+                                pygame.mixer_music.pause()
                                 return "menu"
                     if event.key == pygame.K_TAB :
                         self.show_inventory = not self.show_inventory
+                        if self.show_inventory:
+                            self.sounds["inv_open"].play()
+                        else:
+                            self.sounds["inv_close"].play()
+
                     
                         
                     if event.key == pygame.K_r:
@@ -413,6 +492,10 @@ class generateworld:
                         self.show_crafting = not self.show_crafting
                         if self.show_crafting:
                             self.crafting_scroll = 0
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_m:
+                            self.show_fullmap = not self.show_fullmap
+
                     if self.player:
                         if event.key == pygame.K_h:
                             self.player.health = min(100, self.player.health+10)
@@ -426,6 +509,8 @@ class generateworld:
                         if event.key == pygame.K_SPACE:
                             self.player.get_damage(10)
                             last_health_change = current_time
+                            #self.sounds["hurt"].play()
+
                     # ===== Hotbar number keys =====
                     if pygame.K_1 <= event.key <= pygame.K_9:
                         self.selected_index = event.key - pygame.K_1
@@ -434,11 +519,11 @@ class generateworld:
                 if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mx, my = pygame.mouse.get_pos()
                     start_y = 40
-                    idx = self.crafting_scroll
+                    indexs = self.crafting_scroll
                     for i in range(self.crafting_visible):
-                        if idx >= len(self.recipes):
+                        if indexs >= len(self.recipes):
                             break
-                        item = list(self.recipes.keys())[idx]
+                        item = list(self.recipes.keys())[indexs]
                         reqs = self.recipes[item]
                         rect = pygame.Rect(20, start_y + i*30, 160, 30)
                         if rect.collidepoint(mx, my):
@@ -455,8 +540,10 @@ class generateworld:
                                     
                                     self.add_to_hotbar("wood_planks", 4)
                                     self.inventory["wood_planks"] += 4
+                                    self.sounds["craft"].play()
 
-                        idx += 1
+
+                        indexs += 1
                 
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
                     mouse_position = pygame.mouse.get_pos()
@@ -474,6 +561,7 @@ class generateworld:
                                         if bloktype in self.inventory:
                                             self.inventory[bloktype] += 1
                                             self.add_to_hotbar(bloktype, 1)
+                                        self.sounds["block_break"].play()
                                         break  
                             elif event.type ==pygame.MOUSEBUTTONDOWN and event.button == 3:  
                                 x, y = world_mouse
@@ -494,6 +582,7 @@ class generateworld:
                                     inv_ok = False
 
                                 if not new_block_rect.colliderect(self.player.rect) and not occupied and inv_ok:
+                                    self.sounds["block_place"].play()
                                     self.blocks.append({
                                         "type": selected_type,
                                         "texture": selected_texture,
@@ -581,15 +670,12 @@ class generateworld:
                 else:
                     pygame.draw.rect(self.screen, (0,0,0), rect, 2)
                 
-                tex = None
+                hotbartexture = None
                 if bloktype and bloktype in self.blocklibrary:
-                    tex = self.blocklibrary.get(bloktype)
-                elif bloktype == "wood_planks":
-                    # no wood_planks texture provided; show a scaled tree_log as placeholder
-                    tex = self.blocklibrary.get('tree_log')
+                    hotbartexture = self.blocklibrary.get(bloktype)
 
-                if tex:
-                    icon = pygame.transform.scale(tex, (slot_w - 8, slot_h - 8))
+                if hotbartexture:
+                    icon = pygame.transform.scale(hotbartexture, (slot_w - 8, slot_h - 8))
                     icon_rect = icon.get_rect(center=rect.center)
                     self.screen.blit(icon, icon_rect)
                 
@@ -617,11 +703,11 @@ class generateworld:
                 self.screen.blit(panel, (0,0))
 
                 start_y = 40
-                idx = self.crafting_scroll
+                indexs = self.crafting_scroll
                 for i in range(self.crafting_visible):
-                    if idx >= len(self.recipes):
+                    if indexs >= len(self.recipes):
                         break
-                    item = list(self.recipes.keys())[idx]
+                    item = list(self.recipes.keys())[indexs]
                     reqs = self.recipes[item]
                     craftable = all(self.inventory.get(mat, 0) >= amount for mat, amount in reqs.items())
                     color = (255,255,255) if craftable else (150,50,50)
@@ -633,7 +719,7 @@ class generateworld:
 
                     txt = self.crafting_font.render(text, True, color)
                     self.screen.blit(txt, (20, start_y + i*30))
-                    idx += 1
+                    indexs += 1
             if self.show_inventory:
                 self.draw_inventory()
 
@@ -653,6 +739,46 @@ class generateworld:
             time_rect = time_surf.get_rect(topleft=(x_offset, 20))
 
             self.screen.blit(time_surf, time_rect)
+
+            if self.show_fullmap and self.fullmap_surf:
+                # Dark overlay
+                overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 200))
+                self.screen.blit(overlay, (0, 0))
+
+                # Determine scale factor
+                max_width = self.screen.get_width() - 100
+                max_height = self.screen.get_height() - 100
+                scale_x = max_width / self.fullmap_surf.get_width()
+                scale_y = max_height / self.fullmap_surf.get_height()
+                scale = min(scale_x, scale_y)
+
+                # Scale minimap
+                map_display = pygame.transform.scale(
+                    self.fullmap_surf,
+                    (int(self.fullmap_surf.get_width() * scale),
+                    int(self.fullmap_surf.get_height() * scale))
+                )
+
+                # Centered rectangle
+                map_rect = map_display.get_rect(center=self.screen.get_rect().center)
+
+                # Draw a background panel with border
+                panel = pygame.Surface((map_rect.width + 12, map_rect.height + 12), pygame.SRCALPHA)
+                panel.fill((20, 20, 20, 180))  # dark semi-transparent
+                pygame.draw.rect(panel, (255, 215, 0), panel.get_rect(), 2)  # golden border
+                panel_rect = panel.get_rect(center=self.screen.get_rect().center)
+                self.screen.blit(panel, panel_rect.topleft)
+
+                # Draw minimap on top
+                self.screen.blit(map_display, map_rect)
+
+                # Player dot
+                px = int(self.player.rect.x / self.block_width * scale)
+                py = int(self.player.rect.y / self.block_height * scale)
+                pygame.draw.rect(self.screen, (255, 0, 0), (map_rect.left + px, map_rect.top + py, 6, 6))
+
+
 
 
 
