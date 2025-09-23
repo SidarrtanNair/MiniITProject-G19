@@ -1,12 +1,12 @@
 import pygame
-from Player import Player
+from PlayerV3 import Player
 
 # Initialize Pygame
 pygame.init()
 
 # Screen setup
 WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode(pygame.NOFRAME)
+screen = pygame.display.set_mode((800,600), pygame.NOFRAME)
 pygame.display.set_caption("Resource Collection Demo")
 
 # Clock for FPS control
@@ -28,7 +28,7 @@ class Resource(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft=(x, y))
 
 # Create player instance
-player = Player(100, 100)
+player = Player(100,100)
 
 # Create resource group
 resources = pygame.sprite.Group()

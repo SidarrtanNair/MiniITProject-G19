@@ -3,6 +3,10 @@ import spritesheet
 import os
 import sys
 
+current_directory = os.path.dirname(os.path.abspath(__file__))
+parent_directory = os.path.dirname(current_directory)
+player_directory = os.path.join(parent_directory, 'Map')
+
 pygame.init()
 
 # Fullscreen setup
@@ -11,7 +15,10 @@ SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption('2D Character Animation with Movement')
 
+background = pygame.image.load("Map\BACKGROUND\sforest.png")
+background = pygame.transform.scale(background,(1920,1080))
 BLACK = (0, 0, 0)
+
 BG = (50, 50, 50)
 WHITE = (255, 255, 255)
 FPS = 60
@@ -28,19 +35,20 @@ JUMP = 2
 clock = pygame.time.Clock()
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-def load_animations(sprite_sheet_image):
-    """Load animations from a sprite sheet image and return animation_list."""
+def load_animations(sprite_sheet_image, color_key=(0,0,0)):
     sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
     animation_list = []
     step_counter = 0
+
     for animation_len in animation_steps:
         temp_img_list = []
-        for _ in range(animation_len): 
-            temp_img_list.append(sprite_sheet.get_image(step_counter, 104, 104, 0.3, 'black'))
+        for _ in range(animation_len):
+            # Pass color_key; None if the PNG has alpha transparency
+            temp_img_list.append(sprite_sheet.get_image(step_counter, 104, 104, 0.3, color_key))
             step_counter += 1
         animation_list.append(temp_img_list)
-    return animation_list
 
+    return animation_list
 class Player:
     def __init__(self, animation_list):
         self.animation_list = animation_list
@@ -52,6 +60,8 @@ class Player:
         self.image = pygame.transform.scale(self.image, (self.image.get_width()*SCALE, self.image.get_height()*SCALE))
         self.rect = self.image.get_rect()
         self.rect.bottomleft = (50, SCREEN_HEIGHT - 50)
+
+        self.hitbox = self.rect.inflate(-60, -10) 
 
         self.vel_x = 0
         self.vel_y = 0
@@ -122,6 +132,7 @@ class Player:
             self.rect.left = 0
         if self.rect.right > SCREEN_WIDTH:
             self.rect.right = SCREEN_WIDTH
+        self.hitbox.center = self.rect.center
 
     def move(self, left, right, jump):
         if jump and not self.in_air:
@@ -161,8 +172,8 @@ def gender_selection_screen():
     selected_gender = None
 
     while selecting:
-        screen.fill(BG)
         
+        screen.blit(background,(0,0))
         title_text = font.render("Select Your Character Gender", True, 'white')
         male_text = small_font.render("Press M for Male", True, 'white')
         female_text = small_font.render("Press F for Female", True, 'white')
@@ -182,9 +193,7 @@ def gender_selection_screen():
                 elif event.key == pygame.K_f:
                     selected_gender = 'female'
                     selecting = False
-                elif event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
+                
 
         pygame.display.update()
         clock.tick(FPS)
