@@ -3,6 +3,10 @@ import spritesheet
 import os
 import sys
 
+current_directory = os.path.dirname(os.path.abspath(__file__))
+parent_directory = os.path.dirname(current_directory)
+player_directory = os.path.join(parent_directory, 'Map')
+
 pygame.init()
 
 # Fullscreen setup
@@ -10,6 +14,10 @@ infoObject = pygame.display.Info()
 SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption('2D Character Animation with Movement')
+
+background = pygame.image.load("Map\BACKGROUND\sforest.png")
+background = pygame.transform.scale(background,(1920,1080))
+BLACK = (0, 0, 0)
 
 BLACK = (0, 0, 0)
 BG = (50, 50, 50)
@@ -35,7 +43,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 def load_base_animations(sprite_sheet_image):
     """Load base animations (idle, walk, jump) from main sprite sheet."""
-    sprite_sheet = spritesheet.spritesheet(sprite_sheet_image)
+    sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
     animation_list = []
     step_counter = 0
     for animation_len in base_animation_steps:
@@ -51,7 +59,7 @@ def load_action_animations(attack_image, mine_image, sprite_width, sprite_height
     action_animations = []
     
     # Load attack animation
-    attack_sheet = spritesheet.spritesheet(attack_image)
+    attack_sheet = spritesheet.SpriteSheet(attack_image)
     attack_frames = []
     for i in range(action_animation_steps[0]):  # attack frames
         frame = attack_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
@@ -59,7 +67,7 @@ def load_action_animations(attack_image, mine_image, sprite_width, sprite_height
     action_animations.append(attack_frames)
     
     # Load mine animation
-    mine_sheet = spritesheet.spritesheet(mine_image)
+    mine_sheet = spritesheet.SpriteSheet(mine_image)
     mine_frames = []
     for i in range(action_animation_steps[1]):  # mine frames
         frame = mine_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
@@ -273,7 +281,7 @@ def gender_selection_screen():
     selected_gender = None
 
     while selecting:
-        screen.fill(BG)
+        screen.blit(background,(0,0))
         
         title_text = font.render("Select Your Character Gender", True, 'white')
         male_text = small_font.render("Press M for Male", True, 'white')
