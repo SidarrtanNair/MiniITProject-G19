@@ -481,6 +481,7 @@ class generateworld:
                     if blocktype == "magma_block" and random.random() < 0.08:
                         fire_rect = self.blocklibrary['fire_block'].get_rect(topleft=(rect.x, rect.y - self.block_height))
                         self.blocks.append({"type": "fire_block", "texture": self.blocklibrary['fire_block'], "rect": fire_rect})
+                        
 
         # Build fullmap once for hell
         world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
@@ -800,12 +801,12 @@ class generateworld:
                 world_width = screen_width * self.number_levels
 
                 if self.player.rect.right > (self.current_scene + 1) * screen_width:
-                    if self.current_scene < self.number_levels - 1:
-                        self.current_scene += 1
-                        self.player.rect.left = self.current_scene * screen_width + 2 * self.block_width
-                        new_scene_blocks = [b for b in self.blocks if self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width]
-                        ground_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))],default=self.player.rect.bottom)
-                        self.player.rect.bottom = ground_y
+                    if self.player.rect.right > (self.current_scene + 1) * screen_width:
+                        if self.current_scene < self.number_levels - 1:
+                            self.current_scene += 1
+                            self.player.rect.left = self.current_scene * screen_width + 2 * self.block_width
+                            self.player.rect.bottom = self.get_safe_spawn_y(self.player.rect.centerx, self.current_scene)
+
 
                 elif self.player.rect.left < self.current_scene * screen_width:
                     if self.current_scene > 0:
@@ -976,5 +977,14 @@ class generateworld:
             self.clock.tick(60)
         return "pause"
 
+    def get_safe_spawn_y(self, x, scene_index):
+        screen_width = self.screen.get_width()
+        scene_blocks = [b for b in self.blocks if scene_index * screen_width <= b["rect"].x < (scene_index + 1) * screen_width]
+
+        # Find blocks right under the player's X
+        candidates = [b for b in scene_blocks if b["rect"].left <= x < b["rect"].right]
+        if candidates:
+            return min(b["rect"].top for b in candidates)
+        return self.screen.get_height() - self.block_height
 if __name__ == "__main__":
     generateworld().run()

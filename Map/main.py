@@ -29,7 +29,7 @@ def play_click():
     click_sound.play()
 
 def play_menu_music():
-    pygame.mixer.music.load(os.path.join(current_directory, "Assets", "Audio", "menu_music.mp3"))
+    pygame.mixer.music.load( "menu_music.mp3")
     pygame.mixer.music.set_volume(0.5)  # adjust as you like
     pygame.mixer.music.play(-1)  # loop forever
 
