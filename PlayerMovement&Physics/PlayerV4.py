@@ -3,6 +3,10 @@ import spritesheet
 import os
 import sys
 
+current_directory = os.path.dirname(os.path.abspath(__file__))
+parent_directory = os.path.dirname(current_directory)
+player_directory = os.path.join(parent_directory, 'Map')
+
 pygame.init()
 
 # Fullscreen setup
@@ -10,6 +14,10 @@ infoObject = pygame.display.Info()
 SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption('2D Character Animation with Movement')
+
+background = pygame.image.load("Map\BACKGROUND\sforest.png")
+background = pygame.transform.scale(background,(1920,1080))
+BLACK = (0, 0, 0)
 
 BLACK = (0, 0, 0)
 BG = (50, 50, 50)
@@ -273,7 +281,7 @@ def gender_selection_screen():
     selected_gender = None
 
     while selecting:
-        screen.fill(BG)
+        screen.blit(background,(0,0))
         
         title_text = font.render("Select Your Character Gender", True, 'white')
         male_text = small_font.render("Press M for Male", True, 'white')

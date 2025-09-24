@@ -123,7 +123,7 @@ class Enemy(pygame.sprite.Sprite):
             self.last_attack_time = pygame.time.get_ticks()
             # Optional: Trigger visual flash on player hit
             if hasattr(player, 'hit_flash'):
-                player.h极it_flash = pygame.time.get_ticks()
+                player.hit_flash = pygame.time.get_ticks()
             return True
         return False
     
@@ -216,13 +216,13 @@ class Enemy(pygame.sprite.Sprite):
 
 #=====BOSS=====#
 boss_animation_config = {
-    'idle': {'file': 'Sprite_Img/boss_idle.png', 'frames': 6, 'width': 128, 'height': 128},
-    'dead': {'file': 'Sprite_Img/boss_dead.png', 'frames': 8, 'width': 128, 'height': 128},
-    'attack1': {'file': 'Sprite_Img/boss_attack1.png', 'frames': 6, 'width': 128, 'height': 128},
-    'attack2': {'file': 'Sprite_Img/boss_attack2.png', 'frames': 5, 'width': 128, 'height': 128},
-    'fireball': {'file': 'Sprite_Img/boss_fireball.png', 'frames': 4, 'width': 64, 'height': 64},
+    'idle': {'file': 'Sprite_Img/boss_idle.png', 'frames': 7, 'width': 128, 'height': 128},
+    'dead': {'file': 'Sprite_Img/boss_dead.png', 'frames': 6, 'width': 128, 'height': 128},
+    'attack1': {'file': 'Sprite_Img/boss_attack1.png', 'frames': 8, 'width': 128, 'height': 128},
+    'attack2': {'file': 'Sprite_Img/boss_attack2.png', 'frames': 4, 'width': 128, 'height': 128},
+    'fireball': {'file': 'Sprite_Img/boss_fireball.png', 'frames': 6, 'width': 64, 'height': 64},
     'run': {'file': 'Sprite_Img/boss_run.png', 'frames': 8, 'width': 128, 'height': 128},
-    'jump': {'file': 'Sprite_Img/boss_jump.png', 'frames': 4, 'width': 128, 'height': 128}
+    'jump': {'file': 'Sprite_Img/boss_jump.png', 'frames': 9, 'width': 128, 'height': 128}
 }
 
 def load_boss_animations(scale=2):
@@ -262,15 +262,19 @@ class BossAnimator:
         self.facing_right = False  # Face left initially (toward player)
     
     def update(self):
-        current_time = pygame.time.get_ticks()
-        if current_time - self.update_time > self.animation_cooldown:
-            self.update_time = current_time
-            self.current_frame += 1
-            max_frames = len(self.animations[self.current_animation])
-            if self.current_frame >= max_frames:
-                self.current_frame = 0
-                return True  # Animation finished (used for attack resets)
-        return False
+      current_time = pygame.time.get_ticks()
+      if current_time - self.update_time > self.animation_cooldown:
+          self.update_time = current_time
+          if self.current_animation == 'dead' and self.current_frame >= len(self.animations[self.current_animation]) - 1:
+              # Freeze on last frame for dead animation
+              return False
+          self.current_frame += 1
+          max_frames = len(self.animations[self.current_animation])
+          if self.current_frame >= max_frames:
+              if self.current_animation != 'dead':  # Loop others, but not dead
+                  self.current_frame = 0
+              return True  # Animation finished (used for attack resets)
+      return False
     
     def set_animation(self, animation_name):
         if animation_name in self.animations and animation_name != self.current_animation:
@@ -298,7 +302,7 @@ class Fireball(pygame.sprite.Sprite):
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
-        self.damage = 15  # Damage to player on hit
+        self.damage = 3  # Damage to player on hit
     
     def update(self, player):
         # Animate
@@ -351,7 +355,7 @@ class Boss(pygame.sprite.Sprite):
         # Combat
         self.health = 500
         self.max_health = 500
-        self.attack_damage = 20
+        self.attack_damage = 15
         self.attack_cooldown = 1000  # 1s between attacks
         self.last_attack = 0
         self.is_dead = False
@@ -400,18 +404,23 @@ class Boss(pygame.sprite.Sprite):
     def take_damage(self, damage):
         if not self.is_dead:
             self.health -= damage
+            print(f"Boss took {damage} damage. New health: {self.health}/{self.max_health}")  # Debug print
             if self.health <= 0:
                 self.health = 0
                 self.is_dead = True
                 self.animator.set_animation('dead')
+                print("Boss defeated!")  # Debug print
     
     def attack_player(self, player):
         current_time = pygame.time.get_ticks()
+        # Only attack if cooldown has passed (1 second for attack2)
         if current_time - self.last_attack >= self.attack_cooldown and not self.is_dead:
+            # Deal 15% damage to player (15% of 100 = 15 damage)
             player.get_damage(self.attack_damage)
             if hasattr(player, 'hit_flash'):
                 player.hit_flash = pygame.time.get_ticks()
             self.last_attack = current_time
+            print(f"Boss attacked player! Player health: {player.current_health}/{player.maximum_health}")
             return True
         return False
     
@@ -420,7 +429,7 @@ class Boss(pygame.sprite.Sprite):
             self.animator.update()
             self.image = self.animator.get_current_image()
             return
-        
+
         anim_finished = self.animator.update()
         self.image = self.animator.get_current_image()
         state = self.animator.current_animation
@@ -445,7 +454,7 @@ class Boss(pygame.sprite.Sprite):
                 fx = self.rect.centerx
                 fy = self.rect.centery
                 fireball = Fireball(fx, fy, player.rect.centerx, self.animations['fireball'], 
-                                   self.blocks, self.block_width, self.block_height)
+                                self.blocks, self.block_width, self.block_height)
                 fireball_group.add(fireball)
                 self.fireball_cooldown = current_time
         
@@ -454,30 +463,48 @@ class Boss(pygame.sprite.Sprite):
             if self.current_state != 'chase':
                 self.current_state = 'chase'
                 self.animator.set_animation('run')
+            
             direction = 1 if player.rect.centerx > self.rect.centerx else -1
             self.animator.facing_right = direction > 0
             move_x = direction * self.speed
             
-            # Jump AI: If blocked, jump (only on ground)
-            if self.check_collision(move_x, 0) and self.on_ground:
-                self.vel_y = self.jump_speed
-                self.on_ground = False
-                self.animator.set_animation('jump')
-            else:
-                self.rect.x += move_x
+            # Check for player collision BEFORE moving
+            close_range = 80  # Increased slightly for better collision detection
+            player_collision = False
             
-            # Check collision for attack2
-            if self.rect.colliderect(player.rect):
-                offset_x = player.rect.x - self.rect.x
-                offset_y = player.rect.y - self.rect.y
-                if (hasattr(player, 'mask') and player.mask and 
-                    player.mask.overlap(self.current_mask, (offset_x, offset_y))):
+            # Distance-based collision check first
+            if (abs(player.rect.centerx - self.rect.centerx) <= close_range and 
+                abs(player.rect.centery - self.rect.centery) <= 100):
+                
+                # Pixel-perfect collision check
+                if hasattr(player, 'mask') and player.mask:
+                    offset_x = player.rect.x - self.rect.x
+                    offset_y = player.rect.y - self.rect.y
+                    if self.current_mask.overlap(player.mask, (offset_x, offset_y)):
+                        player_collision = True
+                else:
+                    # Fallback: Rectangle collision
+                    if self.rect.colliderect(player.rect):
+                        player_collision = True
+            
+            # If collision detected, stop movement and attack
+            if player_collision and self.current_state != 'attack2':
+                if current_time - self.last_attack >= self.attack_cooldown:
                     self.current_state = 'attack2'
                     self.animator.set_animation('attack2')
                     self.attack_player(player)
+                move_x = 0  # STOP MOVEMENT
+            
+            # Only move if no collision and not attacking
+            if not player_collision and self.current_state != 'attack2':
+                # Jump AI: If blocked by terrain, jump (only on ground)
+                if self.check_collision(move_x, 0) and self.on_ground:
+                    self.vel_y = self.jump_speed
+                    self.on_ground = False
+                    self.animator.set_animation('jump')
                 else:
-                    # Fallback rect collision
-                    self.attack_player(player)
+                    # Apply horizontal movement
+                    self.rect.x += move_x
         
         else:
             # Idle (mid-range)
@@ -485,7 +512,7 @@ class Boss(pygame.sprite.Sprite):
                 self.current_state = 'idle'
                 self.animator.set_animation('idle')
         
-        # Vertical physics (gravity + collision, like Enemy)
+        # Vertical physics (gravity + collision)
         self.vel_y += self.gravity
         if not self.check_collision(0, self.vel_y):
             self.rect.y += self.vel_y
@@ -503,10 +530,11 @@ class Boss(pygame.sprite.Sprite):
         # World bounds
         self.rect.left = max(0, self.rect.left)
         self.rect.right = min(self.world_width, self.rect.right)
-    
+        
     def draw_health_bar(self, surf, camera_x):
         if self.is_dead:
             return
+        
         bar_width = 100  # Wider for boss
         bar_height = 8
         x = self.rect.centerx + camera_x - bar_width // 2
@@ -521,8 +549,11 @@ class Boss(pygame.sprite.Sprite):
         pygame.draw.rect(surf, (255, 255, 255), (x, y, bar_width, bar_height), 2)
     
     def draw(self, surf, camera_x):
+        # Always draw the current image (including dead animation)
+        surf.blit(self.image, self.rect.move(camera_x, 0))
+        
+        # Only draw health bar if not dead
         if not self.is_dead:
-            surf.blit(self.image, self.rect.move(camera_x, 0))
             self.draw_health_bar(surf, camera_x)
 
 
@@ -580,6 +611,7 @@ class Playeronworld(Player): #1
     def attack_enemies(self, enemy_group, boss_group=None):
         """Attack nearby enemies or boss when player presses attack key"""
         attack_range = 60  # Pixels
+        boss_attack_range = 150
         attacked = False
         
         # Attack enemies (existing logic)
@@ -594,18 +626,21 @@ class Playeronworld(Player): #1
                     break  # One attack per frame
         
         # Attack boss if present and in range
-        if boss_group:
+        if boss_group and not attacked:  # Only attack boss if no enemy was attacked
             boss_list = boss_group.sprites()
-            if boss_list:  # make sure it's not empty
-                boss = boss_list[0]  # first boss
+            if boss_list:
+                boss = boss_list[0]
                 if boss and not boss.is_dead:
                     dx = boss.rect.centerx - self.rect.centerx
                     dy = boss.rect.centery - self.rect.centery
                     distance = (dx**2 + dy**2)**0.5
-                    if distance <= attack_range:
-                        boss.take_damage(50)
+                    if distance <= boss_attack_range:
+                        # Deal 10% of boss max health (500 * 0.1 = 50 damage)
+                        # Change to 500 for 100% damage (instant kill)
+                        boss.take_damage(100)  # 10% damage
                         attacked = True
-        
+                        print(f"Player attacked boss! Boss health: {boss.health}/{boss.max_health}")
+
         return attacked
 
     
@@ -750,10 +785,17 @@ class generateworld:
         self.blocks = []  
         self.seed = None
         self.set_seed()
-        self.number_levels = 9
+        self.number_levels = 5
         self.gen_world(number_levels=self.number_levels)
         self.init_player()
+
+        # NEW: Health bar tracking for player (initialize after player creation)
+        self.health_display_time = 3000  # 3 seconds in ms
+        self.last_health_change = 0      # Timer start (0 means no recent damage)
+        self.prev_player_health = self.player.current_health if self.player else 100  # Track previous health
+
         self.current_scene = 0  
+        self.previous_scene = 0
         self.highlight = False
         
         self.pause_callback = pause_callback
@@ -839,7 +881,7 @@ class generateworld:
         
         # Spawn enemies only in scenes 2 & 3 (index 1 & 2)
         for scene in [1, 2]:  # Scene indices 1 and 2 (scenes 2 and 3)
-            num_enemies = random.randint(2, 4)  # 2-4 enemies per scene
+            num_enemies = random.randint(2, 3)  # 2-3 enemies per scene
             
             for _ in range(num_enemies):
                 # Random x position within the scene
@@ -1036,6 +1078,12 @@ class generateworld:
         # ==== RESPAWN ENEMIES AND BOSS AFTER WORLD GENERATION ==== #
         self.spawn_enemies()
         self.init_boss_system()
+        self.current_scene = 0
+        self.previous_scene = 0
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
+        pygame.mixer.music.set_volume(0.3)
+        pygame.mixer.music.play(-1)
 
     def add_to_hotbar(self, item, amount=1):
         for i in range(2,9):
@@ -1100,9 +1148,7 @@ class generateworld:
 
     def run(self):
         running = True
-        radius = 5 * self.block_width 
-        health_display_time = 3000  
-        last_health_change = 0  
+        radius = 5 * self.block_width  
         screen_width = self.screen.get_width()
         while running:
             current_time = pygame.time.get_ticks()
@@ -1130,20 +1176,6 @@ class generateworld:
                     if event.key == pygame.K_e:  # Press 'E' to manually spawn enemies
                         self.spawn_enemies()
                         print(f"Spawned {len(self.enemy_group)} enemies")
-                    
-                    if self.player:
-                        if event.key == pygame.K_h:
-                            self.player.health = min(100, self.player.health+10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_j:
-                            self.player.health = max(0, self.player.health-10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_UP:  # Updated for PlayerV4 compatibility
-                            self.player.get_health(10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_DOWN:  # Updated for PlayerV4 compatibility
-                            self.player.get_damage(10)
-                            last_health_change = current_time
 
                    # ===== Hotbar number keys =====
                     if pygame.K_1 <= event.key <= pygame.K_9:
@@ -1229,6 +1261,16 @@ class generateworld:
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button ==4:
                             self.selected_index = (self.selected_index -1)
 
+                        current_health = self.player.current_health
+                        if current_health < self.prev_player_health:
+                            self.last_health_change = current_time
+                            print(f"Player took damage! Health: {current_health}/{self.player.maximum_health}")
+                        elif current_health > self.prev_player_health:
+                            self.last_health_change = current_time
+                            print(f"Player healed! Health: {current_health}/{self.player.maximum_health}")
+
+                        self.prev_player_health = current_health
+
             keys = pygame.key.get_pressed()
             if self.player:
                 left = keys[pygame.K_a] 
@@ -1236,7 +1278,8 @@ class generateworld:
                 jump = keys[pygame.K_SPACE] 
                 # New PlayerV4 actions
                 attack = keys[pygame.K_q]
-                mine = keys[pygame.K_e]
+                mouse_button = pygame.mouse.get_pressed()
+                mine = mouse_button[0]
                 
             
                 
@@ -1273,8 +1316,15 @@ class generateworld:
                 
                 # ==== NEW: PLAYER ATTACK BOSS/ENEMIES ==== #
                 if attack and self.player.is_performing_action and self.player.action == ATTACK:
-                    # Existing: self.player.attack_enemies(self.enemy_group)
-                    self.player.attack_enemies(self.enemy_group, self.boss_group)  # Updated call
+                    # Add attack cooldown to prevent spam
+                    current_time = pygame.time.get_ticks()
+                    if not hasattr(self, 'last_player_attack'):
+                        self.last_player_attack = 0
+                    
+                    if current_time - self.last_player_attack >= 500:  # 0.5 second cooldown
+                        attacked = self.player.attack_enemies(self.enemy_group, self.boss_group)
+                        if attacked:
+                            self.last_player_attack = current_time
 
 
                 #=========Cameralogic=======
@@ -1304,6 +1354,28 @@ class generateworld:
                 # Clamp player position to world bounds
                 self.player.rect.left = max(0, self.player.rect.left)
                 self.player.rect.right = min(world_width, self.player.rect.right)
+
+                # Music switching logic (detect scene changes)
+                if self.current_scene != self.previous_scene:
+                    last_scene = self.number_levels - 1
+                    music_dir = os.path.join(current_directory, "MusicMan")
+                    
+                    if self.current_scene == last_scene:
+                        # Entering boss scene: Switch to EpicBossFight
+                        pygame.mixer.music.fadeout(1000)  # Fade out over 1 second (optional)     
+                        pygame.mixer.music.load(os.path.join(music_dir, "EpicBossFight.mp3"))
+                        pygame.mixer.music.set_volume(0.3)
+                        pygame.mixer.music.play(-1)
+                        print("Switched to boss music!")  # Optional debug print
+                    elif self.previous_scene == last_scene:
+                        # Leaving boss scene: Switch back to default
+                        pygame.mixer.music.fadeout(1000)  # Fade out over 1 second (optional)
+                        pygame.mixer.music.load(os.path.join(music_dir, "worldbackground.mp3"))
+                        pygame.mixer.music.set_volume(0.3)
+                        pygame.mixer.music.play(-1)
+                        print("Switched back to default music!")  # Optional debug print
+                    
+                    self.previous_scene = self.current_scene
 
                 # Camera X offset for drawing
                 camera_x = -self.current_scene * screen_width
@@ -1391,11 +1463,17 @@ class generateworld:
                         fireball.rect.left < current_scene_end + 200):
                         fireball.draw(self.screen, camera_x)
 
-            #Heathdissapearlogic#
-            if self.player:
-                if current_time - last_health_change <= health_display_time:
-                    self.player.draw_health_bar(self.screen, camera_x)
-                self.player.draw(self.screen, camera_x)
+            # UPDATED: Health bar drawing logic (now tied to damage detection)
+            should_show_health = (
+                current_time - self.last_health_change <= self.health_display_time or  # Recent change
+                self.player.current_health < self.player.maximum_health  # Not at full health
+            )
+            
+            if should_show_health:
+                self.player.draw_health_bar(self.screen, camera_x)
+            
+            # Always draw the player
+            self.player.draw(self.screen, camera_x)
             
             if self.show_crafting:
                 panel_width = 200
