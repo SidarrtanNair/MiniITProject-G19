@@ -115,12 +115,16 @@ class Playeronworld(Player): #1
 class generateworld:
     def __init__(self, pause_callback = None, volume =0.5):
         pygame.init()
-        self.current_world = 'overworld'
+        self.dimension = 'overworld'
 
         pygame.mixer.init() 
         self.pause_callback = pause_callback
 
-        
+        self.overworld_spawn_x = 300
+        self.overworld_spawn_y = 300
+        self.hell_spawn_x = 300  
+        self.hell_spawn_y = 300
+
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
@@ -177,8 +181,10 @@ class generateworld:
             'magma_block' : pygame.transform.scale(
                 pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\magma_block.png').convert_alpha(),(32,32)),
             'lava_block' : pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\lava_block.png').convert_alpha(),(32,32)
-            )
+                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\lava_block.png').convert_alpha(),(32,32)),
+            'fire_block' : pygame.transform.scale(
+                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\fire_block.png').convert_alpha(),(32,32))
+                
             
 
         }
@@ -265,6 +271,14 @@ class generateworld:
         for s in self.sounds.values():
             s.set_volume(self.sfx_volume)
 
+    def loading_screen(self, text="Loading...", duration=1.0):
+        self.screen.fill((0, 0, 0))  # black background
+        font = pygame.font.SysFont("Arial", 48)
+        label = font.render(text, True, (255, 100, 0))  # fiery orange
+        label_rect = label.get_rect(center=(self.screen.get_width()//2, self.screen.get_height()//2))
+        self.screen.blit(label, label_rect)
+        pygame.display.update()
+        time.sleep(duration)
 
     def play_music(self):
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
@@ -294,6 +308,8 @@ class generateworld:
         self.seed = random.randint(0, 10**9)
 
     def gen_world(self, number_levels=3):
+        self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
+        self.background = pygame.transform.scale(self.background, self.screen.get_size())
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
@@ -421,6 +437,67 @@ class generateworld:
             # corrupt area around portal in block units
             self.corrupt_area(px, py, radius=15, seed=self.seed)
 
+    def gen_hell(self, number_levels=3):
+        self.blocks.clear()
+        noise = OpenSimplex(seed=self.seed)
+        screen_width, screen_height = self.screen.get_size()
+        cols = screen_width // self.block_width
+        rows = screen_height // self.block_height
+
+        # Hell background
+        self.background = pygame.image.load("Map\\BACKGROUND\\hellgame1.gif").convert()
+        self.background = pygame.transform.scale(self.background, self.screen.get_size())
+
+        for level in range(number_levels):
+            for x in range(cols):
+                noise_value = noise.noise2((x + level * cols) * 0.1, 0)
+                base = rows // 4
+                height = int((noise_value + 1) * 5 + base)
+                height = max(1, min(rows, height))
+                surface_y = screen_height - (height * self.block_height)
+
+                for y in range(height):
+                    y_px = screen_height - (y + 1) * self.block_height
+                    if y == height - 1:
+                        blocktype = "magma_block"
+                    elif y < height - 1 and random.random() < 0.05:
+                        blocktype = "lava_block"
+                    else:
+                        blocktype = "magma_block"
+
+                    texture = self.blocklibrary[blocktype].copy()
+
+                    # shading for depth
+                    depth = (y_px - surface_y) // self.block_height
+                    if depth > 0:
+                        max_depth = 20
+                        factor = max(0, 1 - ((depth / max_depth) ** 2))
+                        texture.fill((int(255*factor), int(100*factor), int(50*factor)), special_flags=pygame.BLEND_MULT)
+
+                    rect = texture.get_rect(topleft=((x + level * cols) * self.block_width, y_px))
+                    self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
+
+                    # Random fire blocks on top of magma
+                    if blocktype == "magma_block" and random.random() < 0.08:
+                        fire_rect = self.blocklibrary['fire_block'].get_rect(topleft=(rect.x, rect.y - self.block_height))
+                        self.blocks.append({"type": "fire_block", "texture": self.blocklibrary['fire_block'], "rect": fire_rect})
+
+        # Build fullmap once for hell
+        world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
+        world_height_blocks = max(block["rect"].bottom for block in self.blocks) // self.block_height
+        self.fullmap_surf = pygame.Surface((world_width_blocks, world_height_blocks))
+
+        for block in self.blocks:
+            color = (255, 100, 0)
+            if block["type"] == "lava_block":
+                color = (255, 0, 0)
+            elif block["type"] == "fire_block":
+                color = (255, 255, 0)
+            mx = block["rect"].x // self.block_width
+            my = block["rect"].y // self.block_height
+            if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
+                self.fullmap_surf.set_at((mx, my), color)
+
 
     def corrupt_area(self, px, py, radius=10, seed=None):
         noise = OpenSimplex(seed if seed is not None else random.randint(0,10000))
@@ -456,9 +533,6 @@ class generateworld:
                 new_blocks.append(b)
         self.blocks = new_blocks
 
-
-
-
     def set_sfx_volume(self, volume: float):
         self.sfx_volume = max(0.0, min(1.0, volume))
         for s in self.sounds.values():
@@ -468,7 +542,6 @@ class generateworld:
         self.music_volume = max(0.0, min(1.0, volume))
         pygame.mixer.music.set_volume(self.music_volume)
     
-
     def newseed(self):
         self.seed = random.randint(0, 10**9)
         self.gen_world(number_levels=self.number_levels)
@@ -486,6 +559,7 @@ class generateworld:
                 self.hotbar_slots[i] = item
                 self.hotbar_counts[i] = amount
                 return
+    
     def consume_from_hotbar(self, item, amount):
         remaining = amount
         for i in range(2, 9):  
@@ -500,8 +574,7 @@ class generateworld:
                     self.hotbar_counts[i] = 0
         consumed = amount - remaining
         return consumed
-
-                
+             
     def draw_inventory(self):
         overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 180))
@@ -546,6 +619,7 @@ class generateworld:
         while running:
             current_time = pygame.time.get_ticks()
             camera_x = -(self.current_scene * screen_width)
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -593,9 +667,34 @@ class generateworld:
                             last_health_change = current_time
                             #self.sounds["hurt"].play()
 
-                    # ===== Hotbar number keys =====
                     if pygame.K_1 <= event.key <= pygame.K_9:
                         self.selected_index = event.key - pygame.K_1
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mx,my = pygame.mouse.get_pos()
+                    world_mouse = (mx - camera_x, my)
+                    for block in self.blocks:
+                        if block["rect"].collidepoint(world_mouse):
+                            if block["type"] in ["portal_block", "portal_energy_block"]:
+                                if self.dimension == "overworld":
+                                    self.loading_screen("Entering Hell...", 1.5)  # optional loading screen
+                                    self.dimension = "hell"
+                                    self.current_scene = 0
+                                    self.gen_hell(number_levels=self.number_levels)
+                                    # move player to hell spawn coordinates
+                                    self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
+                                    self.player.vel_x = 0
+                                    self.player.vel_y = 0
+                                else:
+                                    self.loading_screen("Returning to Overworld...", 1.5)
+                                    self.dimension = "overworld"
+                                    self.current_scene = 0
+                                    self.gen_world(number_levels=self.number_levels)
+                                    # move player to overworld spawn
+                                    self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
+                                    self.player.vel_x = 0
+                                    self.player.vel_y = 0
+                                break
 
                 # ===== Crafting click =====
                 if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -810,6 +909,8 @@ class generateworld:
                     indexs += 1
             if self.show_inventory:
                 self.draw_inventory()
+            
+
 
 
             # =====TIMER=====#
@@ -874,7 +975,6 @@ class generateworld:
             pygame.display.flip()
             self.clock.tick(60)
         return "pause"
-
 
 if __name__ == "__main__":
     generateworld().run()
