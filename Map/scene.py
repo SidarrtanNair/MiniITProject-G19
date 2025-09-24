@@ -115,9 +115,12 @@ class Playeronworld(Player): #1
 class generateworld:
     def __init__(self, pause_callback = None, volume =0.5):
         pygame.init()
+        self.current_world = 'overworld'
+
         pygame.mixer.init() 
         self.pause_callback = pause_callback
-        self.music_file = "Map\MusicMan\worldbackground.mp3"
+
+        
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
@@ -167,6 +170,17 @@ class generateworld:
                 pygame.image.load("Map\\BLOCK\\tree_middle_left.png").convert_alpha(),(32,32)),
             'wood_planks': pygame.transform.scale(
                 pygame.image.load("Map\BLOCK\wooden_block_resize.png").convert_alpha(), (32,32)),
+            'portal_block': pygame.transform.scale(
+                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\portal_block.png').convert_alpha(),(32,32)),
+            'portal_energy_block': pygame.transform.scale(
+                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\portal_energy_block.png').convert_alpha(),(32,32)),
+            'magma_block' : pygame.transform.scale(
+                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\magma_block.png').convert_alpha(),(32,32)),
+            'lava_block' : pygame.transform.scale(
+                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\lava_block.png').convert_alpha(),(32,32)
+            )
+            
+
         }
        #==========checkthesize=========#
         self.block_width = self.blocklibrary['dirt'].get_width()
@@ -250,8 +264,6 @@ class generateworld:
         self.sfx_volume = 0.5  
         for s in self.sounds.values():
             s.set_volume(self.sfx_volume)
-
-
 
 
     def play_music(self):
@@ -356,7 +368,6 @@ class generateworld:
         world_height_blocks = max(block["rect"].bottom for block in self.blocks) // self.block_height
         self.fullmap_surf = pygame.Surface((world_width_blocks, world_height_blocks))
 
-
         for block in self.blocks:
             color = (100, 100, 100)
             if block["type"] == "grass":
@@ -375,6 +386,77 @@ class generateworld:
                 self.fullmap_surf.set_at((mx, my), color)
 
             # make sure we stay in bounds
+
+        # find the rightmost bush block
+        portal_x = None
+        portal_y = None
+        for block in self.blocks:
+            if block["type"] == "bush":
+                if portal_x is None or block["rect"].x > portal_x:
+                    portal_x = block["rect"].x
+                    portal_y = block["rect"].y
+        if portal_x is not None and portal_y is not None:
+            px = portal_x // self.block_width
+            py = portal_y // self.block_height
+
+            py = py - 6  # portal base in blocks
+
+            # clear space in blocks
+            portal_rect = pygame.Rect(px*self.block_width, py*self.block_height,
+                          1*self.block_width, 6*self.block_height)
+            self.blocks = [b for b in self.blocks if not portal_rect.colliderect(b["rect"])]
+
+
+            # === Build 1x6 portal ===
+            rect = self.blocklibrary['portal_block'].get_rect(topleft=(px*self.block_width, py*self.block_height))
+            self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
+
+            for i in range(1, 5):  # middle 4 = energy
+                rect = self.blocklibrary['portal_energy_block'].get_rect(topleft=(px*self.block_width, (py+i)*self.block_height))
+                self.blocks.append({"type": "portal_energy_block", "texture": self.blocklibrary['portal_energy_block'], "rect": rect})
+
+            rect = self.blocklibrary['portal_block'].get_rect(topleft=(px*self.block_width, (py+5)*self.block_height))
+            self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
+
+            # corrupt area around portal in block units
+            self.corrupt_area(px, py, radius=15, seed=self.seed)
+
+
+    def corrupt_area(self, px, py, radius=10, seed=None):
+        noise = OpenSimplex(seed if seed is not None else random.randint(0,10000))
+        new_blocks = []
+        for b in self.blocks:
+            bx = b["rect"].x // self.block_width
+            by = b["rect"].y // self.block_height
+            dx = bx - px
+            dy = by - py
+            dist = (dx**2 + dy**2) ** 0.5
+            if dist < radius:
+                fade = 1 - (dist / radius)
+                nval = noise.noise2(bx * 0.15, by * 0.15)
+                chance = (nval + 1) / 2 * fade
+                if b["type"] in ["grass","dirt","dirtstone","stone","bush",]:
+                    if dist < radius:
+                        fade = 1 - (dist / radius)
+                        nval = noise.noise2(bx * 0.15, by * 0.15)
+                        chance = (nval + 1) / 2  # keep full range [0..1]
+                        threshold = 0.3 * fade   # easier to trigger near center
+                        if chance > threshold:
+                            if b["type"] in ["grass","dirt","dirtstone","stone","bush","tree_log","tree_stump"]:
+                                tex = self.blocklibrary["magma_block"]
+                                rect = tex.get_rect(topleft=b["rect"].topleft)
+                                new_blocks.append({"type":"corrupt","texture":tex,"rect":rect})
+                            continue
+
+                    else:
+                        new_blocks.append(b)  # keep original
+                else:
+                    new_blocks.append(b)  # keep non-terrain
+            else:
+                new_blocks.append(b)
+        self.blocks = new_blocks
+
+
 
 
     def set_sfx_volume(self, volume: float):
@@ -562,6 +644,14 @@ class generateworld:
                                             self.inventory[bloktype] += 1
                                             self.add_to_hotbar(bloktype, 1)
                                         self.sounds["block_break"].play()
+
+                                        if bloktype =="grass":
+                                        
+                                            for top in self.blocks[:]:
+                                                if top["type"] == "bush" and top["rect"].x == removed_block["rect"].x and top["rect"].bottom == removed_block["rect"].top:
+                                                    self.blocks.remove(top)
+                                            break
+                                    
                                         break  
                             elif event.type ==pygame.MOUSEBUTTONDOWN and event.button == 3:  
                                 x, y = world_mouse
@@ -613,25 +703,23 @@ class generateworld:
                 if self.player.rect.right > (self.current_scene + 1) * screen_width:
                     if self.current_scene < self.number_levels - 1:
                         self.current_scene += 1
-                        new_scene_blocks = [b for b in self.blocks if (self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width)]
-                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))], default=self.player.rect.bottom)
-                        self.player.rect.left = self.current_scene * screen_width + 1
-                        self.player.rect.bottom = player_bottom_y
+                        self.player.rect.left = self.current_scene * screen_width + 2 * self.block_width
+                        new_scene_blocks = [b for b in self.blocks if self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width]
+                        ground_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))],default=self.player.rect.bottom)
+                        self.player.rect.bottom = ground_y
 
                 elif self.player.rect.left < self.current_scene * screen_width:
                     if self.current_scene > 0:
                         self.current_scene -= 1
-                        new_scene_blocks = [b for b in self.blocks if (self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width)]
-                        player_bottom_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))], default=self.player.rect.bottom)
-                        self.player.rect.right = self.current_scene * screen_width + screen_width - 1
-                        self.player.rect.bottom = player_bottom_y
+                        self.player.rect.right = (self.current_scene + 1) * screen_width - 2 * self.block_width
+                        new_scene_blocks = [b for b in self.blocks if self.current_scene * screen_width <= b["rect"].x < (self.current_scene+1)*screen_width]
+                        ground_y = min([b["rect"].top for b in new_scene_blocks if b["rect"].colliderect(self.player.rect.move(0,1000))],default=self.player.rect.bottom)
+                        self.player.rect.bottom = ground_y
 
-                # Clamp player position to world bounds
                 self.player.rect.left = max(0, self.player.rect.left)
                 self.player.rect.right = min(world_width, self.player.rect.right)
-
-                # Camera X offset for drawing
                 camera_x = -self.current_scene * screen_width
+
 
             # ================= HOTBAR NUMBER KEYS ============== #
             pressed = pygame.key.get_pressed()

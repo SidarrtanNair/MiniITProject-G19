@@ -1,6 +1,6 @@
 import pygame 
 from scene import generateworld
-import time
+import time ,os
 
 #=================INIT=============#
 pygame.init()
@@ -27,6 +27,12 @@ introplay = 0
 def play_click():
     click_sound.set_volume(volume)
     click_sound.play()
+
+def play_menu_music():
+    pygame.mixer.music.load(os.path.join(current_directory, "Assets", "Audio", "menu_music.mp3"))
+    pygame.mixer.music.set_volume(0.5)  # adjust as you like
+    pygame.mixer.music.play(-1)  # loop forever
+
 
 #========Opening===============#
 def intro_sequence():
@@ -196,13 +202,17 @@ def draw_menu():
             elif text == "Continue": 
                 pygame.mixer.unpause()
                 return "continue"
-            elif text == "Settings": return "settings"
-            elif text == "Credits": return "credits"
-            elif text == "Exit Main Menu": return "game"
+            elif text == "Settings": 
+                return "settings"
+            elif text == "Credits": 
+                return "credits"
+            elif text == "Exit Main Menu":
+                play_menu_music()
+                return "game"
     return "menu"
 
 def pause_menu(screen, frozenbg):
-    pygame.mixer_music.pause()
+    pygame.mixer.music.pause()
     font = pygame.font.Font(None, 80)
     while True:
         screen.blit(frozenbg, (0, 0))
@@ -228,28 +238,49 @@ def pause_menu(screen, frozenbg):
                     return "continue"
                 if exit_btn.collidepoint(pygame.mouse.get_pos()):
                     return "exit"
+def play_menu_music():
+    if not pygame.mixer.music.get_busy(): 
+        pygame.mixer.music.stop() # only start if nothing else is playing
+        pygame.mixer.music.load("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3")
+        pygame.mixer.music.set_volume(volume)
+        pygame.mixer.music.play(-1)
 
 def draw_new_game():
     global world
+    screen.fill((0,0,0))
+    loading_text = font.render("Loading World....", True, "white")
+    screen.blit(loading_text,(WIDTH//2 - loading_text.get_width()//2,HEIGHT//2))
+
     world = generateworld(pause_callback=pause_menu)
+    world.play_music()
     state = world.run()
     if state == "menu":
+        pygame.mixer.music.stop()
         return "menu"
 
 def draw_continue():
     global world
     if world:
-        if not pygame.mixer.music.get_busy():
-            world.play_music()
-        return world.run()
+        world.play_music()
+        state = world.run()
+        if state == "menu":
+            pygame.mixer.music.stop()
+            return "menu"
+        return state
     else:
         screen.fill("black")
         screen.blit(font.render("No game to continue", True, "white"), (WIDTH//3, HEIGHT//2))
         back_btn = pygame.draw.rect(screen, 'white', [10, 10, 150, 40], 0, 5)
         screen.blit(font.render("Back", True, "black"), (20, 15))
         if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+            play_click()
             return "menu"
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        pygame.mixer.music.set_volume(volume)
+        pygame.mixer.music.play(-1)
         return "continue"
+
 
 def draw_settings():
     global volume
