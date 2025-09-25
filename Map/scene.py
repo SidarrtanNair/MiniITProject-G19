@@ -77,7 +77,8 @@ class Playeronworld(Player): #1
         if self.rect.right > self.world_width:
             self.rect.right = self.world_width
         self.hitbox.center = self.rect.center
-    
+        self.hitbox = self.rect.inflate(-60, -10)
+
     # === sounds ===
     # footsteps (timed, not spam)
         if self.vel_x != 0 and not self.in_air:
@@ -916,31 +917,58 @@ class generateworld:
                     mx, my = pygame.mouse.get_pos()
                     start_y = 40
                     indexs = self.crafting_scroll
+
+                    # Build counts dictionary from inventory_slots
+                    inventory_counts = {}
+                    for slot in self.inventory_slots:
+                        if slot:
+                            name, cnt = slot
+                            inventory_counts[name] = inventory_counts.get(name, 0) + cnt
+
                     for i in range(self.crafting_visible):
                         if indexs >= len(self.recipes):
                             break
-                        item = list(self.recipes.keys())[indexs]
-                        reqs = self.recipes[item]
-                        rect = pygame.Rect(20, start_y + i*30, 160, 30)
+
+                        crafted_item = list(self.recipes.keys())[indexs]
+                        reqs = self.recipes[crafted_item]
+                        rect = pygame.Rect(20, start_y + i * 30, 160, 30)
+
                         if rect.collidepoint(mx, my):
-                            if all(self.inventory_slots.get(mat, 0) >= amount for mat, amount in reqs.items()):
-                                
+                            # check if craftable
+                            if all(inventory_counts.get(mat, 0) >= amount for mat, amount in reqs.items()):
+                                crafted_amount = 4 if crafted_item == "wood_planks" else 1
+
+                                # consume required materials
                                 for mat, amount in reqs.items():
-                                    self.inventory_slots[mat] -= amount
+                                    remaining = amount
+                                    for idx, slot in enumerate(self.inventory_slots):
+                                        if slot and slot[0] == mat:
+                                            item_name, count = slot
+                                            if count > remaining:
+                                                self.inventory_slots[idx] = (item_name, count - remaining)
+                                                remaining = 0
+                                                break
+                                            else:
+                                                remaining -= count
+                                                self.inventory_slots[idx] = None
 
-                                    
-                                    consumed = self.consume_from_hotbar(mat, amount)
+                                # add crafted item using your existing system
+                                self.add_to_inventory(crafted_item, crafted_amount)
 
-            
-                                if item == "wood_planks":
-                                    
-                                    self.add_to_hotbar("wood_planks", 4)
-                                    self.inventory_slots["wood_planks"] += 4
+                                # update hotbar (sync)
+                                self.update_hotbar()
+
+                                # play craft sound if available
+                                if "craft" in self.sounds:
                                     self.sounds["craft"].play()
-
+                            else:
+                                # fail sound
+                                if "fail" in self.sounds:
+                                    self.sounds["fail"].play()
 
                         indexs += 1
-                
+
+                                
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
                     mouse_position = pygame.mouse.get_pos()
                     world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
@@ -1099,8 +1127,15 @@ class generateworld:
                 panel_width = 200
                 panel_height = self.screen.get_height()
                 panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-                panel.fill((30,30,30,180))
-                self.screen.blit(panel, (0,0))
+                panel.fill((30, 30, 30, 180))
+                self.screen.blit(panel, (0, 0))
+
+                # === build inventory counts as a dict ===
+                inventory_counts = {}
+                for slot in self.inventory_slots:
+                    if slot:  # slot = (item, count)
+                        item, count = slot
+                        inventory_counts[item] = inventory_counts.get(item, 0) + count
 
                 start_y = 40
                 indexs = self.crafting_scroll
@@ -1109,17 +1144,20 @@ class generateworld:
                         break
                     item = list(self.recipes.keys())[indexs]
                     reqs = self.recipes[item]
-                    craftable = all(self.inventory_slots.get(mat, 0) >= amount for mat, amount in reqs.items())
-                    color = (255,255,255) if craftable else (150,50,50)
-                    
+
+                    # check if player has enough of each material
+                    craftable = all(inventory_counts.get(mat, 0) >= amount for mat, amount in reqs.items())
+                    color = (255, 255, 255) if craftable else (150, 50, 50)
+
                     if item == "wood_planks":
                         text = f"{item} x4: tree_log x1"
                     else:
-                        text = f"{item}: " + ", ".join([f"{m}x{a}" for m,a in reqs.items()])
+                        text = f"{item}: " + ", ".join([f"{m}x{a}" for m, a in reqs.items()])
 
                     txt = self.crafting_font.render(text, True, color)
-                    self.screen.blit(txt, (20, start_y + i*30))
+                    self.screen.blit(txt, (20, start_y + i * 30))
                     indexs += 1
+
             if self.show_inventory:
                 self.draw_inventory()
             
