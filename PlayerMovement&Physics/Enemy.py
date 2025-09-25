@@ -62,8 +62,13 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.rect.x = SCREEN_WIDTH
         self.rect.y = y
+
+    def attack_player(self, player):
+            if pygame.time.get_ticks() - getattr(self, "last_attack_time", 0) >= 1000:  # 1s cooldown
+                self.last_attack_time = pygame.time.get_ticks()
+                player.get_damage(10)    
         
-    def update(self, scroll, SCREEN_WIDTH):
+    def update(self, scroll, SCREEN_WIDTH, player):
         #update animation
         ANIMATION_COOLDOWN = 50
         #update image depending on current frame
@@ -108,6 +113,10 @@ class Enemy(pygame.sprite.Sprite):
         #check if gone off screen
         if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
             self.kill()
+               
+        if player and self.rect.colliderect(player.rect):
+            self.attack_player(player)
+
 
 # Create sprite group (fixed typo: sprtie -> sprite)
 enemy_group = pygame.sprite.Group()
@@ -135,7 +144,7 @@ def main():
             enemy_group.add(enemy)
 
         # Update enemy (fixed parameters - added scroll)
-        enemy_group.update(scroll, SCREEN_WIDTH)
+        enemy_group.update(scroll, SCREEN_WIDTH, player)
 
         # Draw sprite
         enemy_group.draw(screen) 
