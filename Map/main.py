@@ -320,7 +320,7 @@ def draw_settings():
         if slider_x <= mx <= slider_x+slider_w and slider_y-20 <= my <= slider_y+slider_h+20:
             volume = (mx - slider_x) / slider_w
             pygame.mixer.music.set_volume(volume)
-
+    
     back_img = ui_images["exit_menu"]
     max_width = 300
     if back_img.get_width() > max_width:
