@@ -242,7 +242,7 @@ def play_menu_music():
     if not pygame.mixer.music.get_busy(): 
         pygame.mixer.music.stop() # only start if nothing else is playing
         pygame.mixer.music.load("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3")
-        pygame.mixer.music.set_volume(volume)
+        pygame.mixer.music.set_volume(volume + 1)
         pygame.mixer.music.play(-1)
 
 def draw_new_game():
@@ -275,31 +275,44 @@ def draw_continue():
         if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
             play_click()
             return "menu"
-        pygame.mixer.music.stop()
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
-        pygame.mixer.music.set_volume(volume)
-        pygame.mixer.music.play(-1)
+        
         return "continue"
 
+
+pygame.mixer_music.set_volume(1.0)
+# Initialize volume at 100%
+volume = 1.0
+pygame.mixer.music.set_volume(volume)
 
 def draw_settings():
     global volume
     screen.fill("black")
     screen.blit(font.render("Settings", True, "white"), (WIDTH//3, HEIGHT//10))
+
+    # Back button
     back_btn = pygame.draw.rect(screen, 'white', [10, 10, 150, 40], 0, 5)
     screen.blit(font.render("Back", True, "black"), (20, 15))
+
+    # Volume slider
     slider_x, slider_y, slider_w, slider_h = WIDTH//4, HEIGHT//2, 500, 40
     pygame.draw.rect(screen, "gray", [slider_x, slider_y, slider_w, slider_h])
+    # Slider fill based on current volume
     pygame.draw.rect(screen, "white", [slider_x, slider_y, int(volume*slider_w), slider_h], border_radius=5)
     screen.blit(font.render(f"Volume: {int(volume*100)}%", True, "blue"), (slider_x, slider_y-50))
+
+    # Adjust volume if slider is clicked
     if pygame.mouse.get_pressed()[0]:
         mx, my = pygame.mouse.get_pos()
         if slider_x <= mx <= slider_x+slider_w and slider_y-20 <= my <= slider_y+slider_h+20:
             volume = (mx - slider_x) / slider_w
             pygame.mixer.music.set_volume(volume)
+
+    # Back button click
     if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
         return "menu"
+
     return "settings"
+
 
 def draw_credits():
     screen.fill("black")
