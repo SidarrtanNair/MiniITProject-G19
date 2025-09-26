@@ -25,6 +25,7 @@ class Playeronworld(Player): #1
         self.parent = parent
         self.was_in_air = True       
         self.last_step_time = 0
+        
     #======DamageLogic============#   
     def get_damage(self, amount):
         try:
@@ -130,10 +131,10 @@ class Playeronworld(Player): #1
 
 # =====WORLDGEN================================================================================================================= #
 class generateworld:
-    def __init__(self, pause_callback = None, volume =0.5):
+    def __init__(self, gender,pause_callback = None, volume =0.5, ):
         pygame.init()
         self.dimension = 'overworld'
-
+        self.volume =volume
         pygame.mixer.init() 
         self.pause_callback = pause_callback
 
@@ -228,7 +229,7 @@ class generateworld:
         self.number_levels = 5
         self.gen_world(number_levels=self.number_levels)
 
-        self.init_player()
+        self.init_player(gender)
         self.current_scene = 0  
         self.highlight = False
         
@@ -287,9 +288,7 @@ class generateworld:
 
 
         #=======Music=============#
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")   
-        pygame.mixer.music.play(-1)
-        self.volume =volume
+        
                 # ===== Sound Effects ===== #
         self.sounds = {
             "footstep": pygame.mixer.Sound("Map\\Sounds\\footstep_grass.mp3"),
@@ -301,6 +300,7 @@ class generateworld:
             "craft": pygame.mixer.Sound("Map\\Sounds\\craft.mp3"),
             "inv_open": pygame.mixer.Sound("Map\\Sounds\\inventory_open.mp3"),
             "inv_close": pygame.mixer.Sound("Map\\Sounds\\inventory_close.mp3"),
+            "typing": pygame.mixer.Sound("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3")
             #"hurt": pygame.mixer.Sound("Map\\Sounds\\player_hurt.mp3"),
             #"heal": pygame.mixer.Sound("Map\\Sounds\\heal.mp3"),
         }
@@ -309,7 +309,8 @@ class generateworld:
         self.sfx_volume = 0.5  
         for s in self.sounds.values():
             s.set_volume(self.sfx_volume)
-
+        self.init_player(gender)
+    
     def loading_screen(self, text="Loading...", duration=1.0):
         self.screen.fill((0, 0, 0))  # black background
         font = pygame.font.SysFont("Arial", 48)
@@ -319,22 +320,20 @@ class generateworld:
         pygame.display.update()
         time.sleep(duration)
 
-    def play_music(self):
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
-        pygame.mixer.music.set_volume(self.volume)
-        pygame.mixer.music.play(-1)
+    
 
-    def init_player(self):
-        gender = gender_selection_screen()
+    def init_player(self, gender):  # <-- accept gender as argument
         if gender == 'male':
             sprite_path = os.path.join(project_root, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
         else:
             sprite_path = os.path.join(project_root, 'PlayerMovementPhysics', 'Sprite_Img', 'female_spriteV1_flipped.png')
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
+
         animation_list = load_animations(sprite_sheet_image)
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
         self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height, world_width, self)
+        self.player.gender = gender 
         spawn_x = 300
         spawn_y = 300
         for block in self.blocks:
@@ -342,6 +341,80 @@ class generateworld:
                 if block["rect"].top < spawn_y or spawn_y == 2:
                     spawn_y = block["rect"].top
         self.player.rect.bottomleft = (spawn_x, spawn_y)
+
+    def show_dialogue(self, text, portrait_img=None, text_sound = None):
+        pygame.mixer.music.stop()
+        font = pygame.font.SysFont("Consolas", 24)
+        line_spacing = 30
+        text_color = (255, 255, 255)
+        type_speed = 60
+
+        portrait_offset_x = 0
+        if portrait_img:
+            max_height = 100
+            scale = min(max_height / portrait_img.get_height(), 1)
+            portrait_img = pygame.transform.smoothscale(
+                portrait_img,
+                (int(portrait_img.get_width() * scale), int(portrait_img.get_height() * scale))
+            )
+            portrait_offset_x = portrait_img.get_width() + 10
+
+        rendered_text = [char for char in text]
+        current_index = 0
+        last_update = pygame.time.get_ticks()
+        waiting_for_click = True
+
+        box_width = 500
+        box_height = 100
+        box_x = (self.screen.get_width() - box_width) // 2
+        box_y = self.screen.get_height() - box_height - 20
+
+        while waiting_for_click:
+            # Draw semi-transparent dialogue box on top of gameplay
+            box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            box_surf.fill((0, 0, 0, 200))
+            pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
+            self.screen.blit(box_surf, (box_x, box_y))
+
+            if portrait_img:
+                self.screen.blit(portrait_img, (box_x + 10, box_y + box_height - portrait_img.get_height() - 10))
+
+            now = pygame.time.get_ticks()
+            if current_index < len(rendered_text) and now - last_update > type_speed:
+                current_index += 1
+                last_update = now
+
+            words = "".join(rendered_text[:current_index]).split(" ")
+            lines = []
+            line = ""
+            for word in words:
+                test_line = line + word + " "
+                if font.size(test_line)[0] > box_width - portrait_offset_x - 20:
+                    lines.append(line)
+                    line = word + " "
+                else:
+                    line = test_line
+            lines.append(line)
+
+            for i, line in enumerate(lines):
+                text_surf = font.render(line, True, text_color)
+                self.screen.blit(text_surf, (box_x + portrait_offset_x + 10, box_y + 10 + i * line_spacing))
+
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                    if current_index >= len(rendered_text):
+                        waiting_for_click = False
+                    else:
+                        current_index = len(rendered_text)
+
+            self.clock.tick(60)
+
+
 
     def set_seed(self):
         self.seed = random.randint(0, 10**9)
@@ -540,7 +613,6 @@ class generateworld:
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
                 self.fullmap_surf.set_at((mx, my), color)
 
-
     def corrupt_area(self, px, py, radius=10, seed=None):
         noise = OpenSimplex(seed if seed is not None else random.randint(0,10000))
         new_blocks = []
@@ -584,11 +656,11 @@ class generateworld:
         self.music_volume = max(0.0, min(1.0, volume))
         pygame.mixer.music.set_volume(self.music_volume)
     
-    def newseed(self):
+    def newseed(self,gender):
         self.seed = random.randint(0, 10**9)
         self.gen_world(number_levels=self.number_levels)
         if self.player:
-            self.init_player()
+            self.init_player(gender)
 
     def add_to_inventory(self, bloktype, amount=1):
     # Try stacking in inventory
@@ -615,6 +687,7 @@ class generateworld:
             if item is None:
                 self.hotbar_slots[i] = (block_type, 1)
                 return
+    
     def consume_from_hotbar(self, item, amount):
         remaining = amount
         for i in range(len(self.hotbar_slots)):
@@ -631,8 +704,7 @@ class generateworld:
                     self.hotbar_slots[i] = (slot_type, slot_count)
         consumed = amount - remaining
         return consumed
-
-                
+         
     # ===== Inventory/Hotbar Drawing =====
     def draw_inventory(self):
         inv_width = self.inventory_cols * self.inventory_slot_size + (self.inventory_cols - 1) * self.inventory_padding
@@ -673,9 +745,6 @@ class generateworld:
                     icon_rect = icon.get_rect(center=(mx, my))
                     self.screen.blit(icon, icon_rect)
     
-
-
-
     def draw_hotbar(self, screen, selected_index):
         hotbar_slots = self.hotbar_slots
         
@@ -813,9 +882,6 @@ class generateworld:
             self.dragging_slot = None
             self.dragging_row = None
             self.dragging_col = None
-
-
-
     # ===== Hotbar Sync =====
     def update_hotbar(self):
         for i in range(9):  # first row of inventory
@@ -826,8 +892,26 @@ class generateworld:
                 self.hotbar_slots[i] = (None, 0)
 
                 
-
     def run(self):
+        if self.player:
+            if self.player.gender == "male":
+                portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
+            else:
+                portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
+
+            text_sound = self.sounds.get("typing")  # blip for typewriter effect
+
+            self.show_dialogue(
+                "Where am I, better get back through that portal, I have an assignment to finish",
+                portrait_img=portrait_img,
+                text_sound=text_sound
+            )
+            pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+            pygame.mixer.music.set_volume(self.volume)
+            pygame.mixer.music.play(-1)
+
+
+
         running = True
         radius = 7 * self.block_width 
         health_display_time = 3000  

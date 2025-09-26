@@ -1,5 +1,5 @@
 import pygame
-from Map.scene import generateworld
+from Map.scene import *
 import time ,os
 
 #=================INIT================================================================================#
@@ -31,6 +31,22 @@ ui_images = {
     "new_game": pygame.image.load("Map\\UI+LOGO\\newgame.png").convert_alpha(),
     "continue": pygame.image.load("Map\\UI+LOGO\\continue.png").convert_alpha(),
     "credits": pygame.image.load("Map\\UI+LOGO\\credits.png").convert_alpha() }
+
+cutscene_male = [
+    pygame.image.load("Map\\Cutscene\\male_intro1.png").convert_alpha(),
+    pygame.image.load("Map\\Cutscene\\male_intro2.png").convert_alpha(),
+    pygame.image.load("Map\\Cutscene\\male_intro3.png").convert_alpha()
+]
+
+cutscene_female = [
+    pygame.image.load("Map\\Cutscene\\female_intro1.png").convert_alpha(),
+    pygame.image.load("Map\\Cutscene\\female_intro2.png").convert_alpha(),
+    pygame.image.load("Map\\Cutscene\\female_intro3.png").convert_alpha()
+]
+
+for i in range(3):
+    cutscene_male[i] = pygame.transform.smoothscale(cutscene_male[i], (WIDTH, HEIGHT))
+    cutscene_female[i] = pygame.transform.smoothscale(cutscene_female[i], (WIDTH, HEIGHT))
 
 #=============Start=================#
 def play_click():
@@ -126,6 +142,61 @@ def intro_sequence():
         pygame.display.flip()
 
     pygame.mixer.music.stop()
+def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
+    if music:
+        pygame.mixer.music.load(music)
+        pygame.mixer.music.set_volume(volume)
+        pygame.mixer.music.play(-1)
+
+    for img in images:
+        fade_alpha = 0
+        # Fade in
+        while fade_alpha < 255:
+            timer.tick(fps)
+            screen.fill((0,0,0))
+            fade_alpha = min(fade_alpha + fade_speed, 255)
+            temp_img = img.copy()
+            temp_img.set_alpha(fade_alpha)
+            screen.blit(temp_img, (0,0))
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    return  # skip cutscene
+
+        # Linger
+        linger = linger_frames
+        while linger > 0:
+            timer.tick(fps)
+            screen.fill((0,0,0))
+            img.set_alpha(255)
+            screen.blit(img, (0,0))
+            pygame.display.flip()
+            linger -= 1
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    return  # skip cutscene
+
+        # Fade out
+        while fade_alpha > 0:
+            timer.tick(fps)
+            screen.fill((0,0,0))
+            fade_alpha = max(fade_alpha - fade_speed, 0)
+            temp_img = img.copy()
+            temp_img.set_alpha(fade_alpha)
+            screen.blit(temp_img, (0,0))
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    return  # skip cutscene
 
 #========Title Menu Screen=========#
 def title_menu_screen():
@@ -263,14 +334,25 @@ def draw_new_game():
     global world
     screen.fill((0,0,0))
     loading_text = font.render("Loading World....", True, "white")
-    screen.blit(loading_text,(WIDTH//2 - loading_text.get_width()//2,HEIGHT//2))
+    screen.blit(loading_text,(WIDTH//2 - loading_text.get_width()//2, HEIGHT//2))
+    pygame.display.flip()
 
-    world = generateworld(pause_callback=pause_menu)
+    character_choice = gender_selection_screen()  
+
+    if character_choice == "male":
+        play_cutscene(cutscene_male, music="Map\\MusicMan\\storymusic1.mp3")
+    elif character_choice == "female":
+        play_cutscene(cutscene_female, music="Map\\MusicMan\\storymusic1.mp3")
+
+    world = generateworld(pause_callback=pause_menu, gender=character_choice) 
     world.play_music()
+
     state = world.run()
     if state == "menu":
         pygame.mixer.music.stop()
         return "menu"
+
+
 
 def draw_continue():
     global world

@@ -166,22 +166,56 @@ class Player:
 
 # --- GENDER SELECTION SCREEN ---
 def gender_selection_screen():
-    font = pygame.font.SysFont(None, 60)
-    small_font = pygame.font.SysFont(None, 40)
-
     selecting = True
     selected_gender = None
 
-    while selecting:
-        
-        screen.blit(background,(0,0))
-        title_text = font.render("Select Your Character Gender", True, 'white')
-        male_text = small_font.render("Press M for Male", True, 'white')
-        female_text = small_font.render("Press F for Female", True, 'white')
+    font = pygame.font.SysFont(None, 60)
+    small_font = pygame.font.SysFont(None, 40)
 
-        screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, SCREEN_HEIGHT//3))
-        screen.blit(male_text, (SCREEN_WIDTH//2 - male_text.get_width()//2, SCREEN_HEIGHT//2))
-        screen.blit(female_text, (SCREEN_WIDTH//2 - female_text.get_width()//2, SCREEN_HEIGHT//2 + 50))
+    male_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
+    female_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
+
+    max_width = SCREEN_WIDTH // 6
+    max_height = SCREEN_HEIGHT // 3
+
+    def scale_proportional(img, max_w, max_h):
+        w, h = img.get_size()
+        scale = min(max_w / w, max_h / h, 1)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        return pygame.transform.smoothscale(img, (new_w, new_h))
+
+    male_img = scale_proportional(male_img, max_width, max_height)
+    female_img = scale_proportional(female_img, max_width, max_height)
+
+    margin = SCREEN_WIDTH // 6
+    male_pos = (margin, SCREEN_HEIGHT // 3)
+    female_pos = (SCREEN_WIDTH - margin - female_img.get_width(), SCREEN_HEIGHT // 3)
+
+    male_rect = pygame.Rect(male_pos, (male_img.get_width(), male_img.get_height()))
+    female_rect = pygame.Rect(female_pos, (female_img.get_width(), female_img.get_height()))
+
+    bg_image = pygame.image.load("Map\\BACKGROUND\\genderbg1.png").convert()
+    bg_image = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    while selecting:
+        screen.blit(bg_image, (0, 0))
+
+        title_text = font.render("Select Your Character Gender", True, 'white')
+        screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, 50))
+
+        screen.blit(male_img, male_pos)
+        screen.blit(female_img, female_pos)
+
+        male_text = small_font.render("Male", True, 'white')
+        female_text = small_font.render("Female", True, 'white')
+        screen.blit(male_text, (male_pos[0] + male_img.get_width()//2 - male_text.get_width()//2,
+                                male_pos[1] + male_img.get_height() + 10))
+        screen.blit(female_text, (female_pos[0] + female_img.get_width()//2 - female_text.get_width()//2,
+                                  female_pos[1] + female_img.get_height() + 10))
+
+        instr_text = small_font.render("Click a portrait or press M/F to select", True, 'yellow')
+        screen.blit(instr_text, (SCREEN_WIDTH//2 - instr_text.get_width()//2, SCREEN_HEIGHT - 100))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -194,13 +228,21 @@ def gender_selection_screen():
                 elif event.key == pygame.K_f:
                     selected_gender = 'female'
                     selecting = False
-                
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mx, my = pygame.mouse.get_pos()
+                if male_rect.collidepoint(mx, my):
+                    selected_gender = 'male'
+                    selecting = False
+                elif female_rect.collidepoint(mx, my):
+                    selected_gender = 'female'
+                    selecting = False
 
         pygame.display.update()
-    return selected_gender
-    clock.tick(FPS)
+        clock.tick(FPS)
 
     return selected_gender
+
+
 
 # --- MAIN LOOP ---
 def main():
