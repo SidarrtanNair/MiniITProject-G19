@@ -11,20 +11,11 @@ from PlayerV4 import Player, load_base_animations, load_action_animations, gende
 from PlayerV4 import IDLE, WALK, JUMP, ATTACK, MINE, SCALE
 from Enemy import Enemy
 from Boss import Boss
+from spritesheet import SpriteSheet
 
-# ==== NEW ENEMY SPRITESHEET CLASS ==== #
-class SpriteSheet:
-    def __init__(self, image):
-        self.sheet = image
 
-    def get_image(self, frame, width, height, scale, colour):
-        image = pygame.Surface((width, height)).convert_alpha()
-        image.blit(self.sheet, (0, 0), ((frame * width), 0, width, height))
-        image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
-        image.set_colorkey(colour)
-        return image
 
-# ==== NEW ENEMY CLASS FOR SCENE ==== #
+# ======== ENEMY ======== #
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, sprite_sheet, scale, blocks, block_width, block_height):
         pygame.sprite.Sprite.__init__(self)
@@ -142,7 +133,6 @@ class Enemy(pygame.sprite.Sprite):
         
         self.image = self.animation_list[self.frame_index]
         
-        # NEW: Update current mask for the active frame
         self.current_mask = self.masks[self.frame_index % len(self.masks)]  # Cycle if needed
         
         # Handle jumping (only when on ground)
@@ -214,7 +204,7 @@ class Enemy(pygame.sprite.Sprite):
             surf.blit(self.image, self.rect.move(camera_x, 0))
             self.draw_health_bar(surf, camera_x)
 
-#=====BOSS=====#
+#========== BOSS ==========#
 boss_animation_config = {
     'idle': {'file': 'Sprite_Img/boss_idle.png', 'frames': 7, 'width': 128, 'height': 128},
     'dead': {'file': 'Sprite_Img/boss_dead.png', 'frames': 6, 'width': 128, 'height': 128},
@@ -345,12 +335,12 @@ class Boss(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         
-        # Physics (similar to Enemy)
+        # Physics 
         self.vel_y = 0
         self.gravity = 0.8
         self.jump_speed = -15
         self.on_ground = False
-        self.speed = 2  # Slower than player for chase feel
+        self.speed = 2  
         
         # Combat
         self.health = 500
@@ -379,18 +369,16 @@ class Boss(pygame.sprite.Sprite):
         self.find_ground()
     
     def find_ground(self):
-        # Similar to Enemy.find_ground
         ground_y = self.rect.y + 500
         for block in self.blocks:
             if (block["type"] == "grass" and 
                 abs(block["rect"].centerx - self.rect.centerx) < self.block_width * 5):  # Wider search for boss
                 if block["rect"].top > self.rect.y:
                     ground_y = min(ground_y, block["rect"].top)
-        self.rect.bottom = ground_y - 100  # Start above ground
+        self.rect.bottom = ground_y - 100  
         self.on_ground = False
     
     def check_collision(self, dx, dy):
-        # Same as Enemy.check_collision
         temp_rect = self.rect.copy()
         temp_rect.x += dx
         temp_rect.y += dy
@@ -409,11 +397,10 @@ class Boss(pygame.sprite.Sprite):
                 self.health = 0
                 self.is_dead = True
                 self.animator.set_animation('dead')
-                print("Boss defeated!")  # Debug print
+                print("Boss defeated!")  
     
     def attack_player(self, player):
         current_time = pygame.time.get_ticks()
-        # Only attack if cooldown has passed (1 second for attack2)
         if current_time - self.last_attack >= self.attack_cooldown and not self.is_dead:
             # Deal 15% damage to player (15% of 100 = 15 damage)
             player.get_damage(self.attack_damage)
@@ -438,7 +425,7 @@ class Boss(pygame.sprite.Sprite):
         dist_x = abs(player.rect.centerx - self.rect.centerx)
         current_time = pygame.time.get_ticks()
         
-        # State machine
+        # State boss
         if self.current_state == 'attack2' and anim_finished:
             # Reset after attack2
             self.current_state = 'chase' if dist_x <= 320 else 'idle'
@@ -469,7 +456,7 @@ class Boss(pygame.sprite.Sprite):
             move_x = direction * self.speed
             
             # Check for player collision BEFORE moving
-            close_range = 80  # Increased slightly for better collision detection
+            close_range = 80  
             player_collision = False
             
             # Distance-based collision check first
@@ -535,7 +522,7 @@ class Boss(pygame.sprite.Sprite):
         if self.is_dead:
             return
         
-        bar_width = 100  # Wider for boss
+        bar_width = 100  
         bar_height = 8
         x = self.rect.centerx + camera_x - bar_width // 2
         y = self.rect.top - 20
@@ -586,7 +573,7 @@ class Playeronworld(Player): #1
     
     @property
     def health(self):
-        """Compatibility property for existing scene.py code"""
+        """Compatibility property"""
         return self.current_health
     
     @health.setter 
@@ -607,7 +594,6 @@ class Playeronworld(Player): #1
         return False
     
     # ==== NEW ENEMY ATTACK METHOD ==== #
-    # Replace the existing attack_enemies method in Playeronworld
     def attack_enemies(self, enemy_group, boss_group=None):
         """Attack nearby enemies or boss when player presses attack key"""
         attack_range = 60  # Pixels
@@ -649,7 +635,7 @@ class Playeronworld(Player): #1
         # Use PlayerV4's update method but with collision checking
         current_time = pygame.time.get_ticks()
         
-        # Check极 if action should end
+        # Check if action should end
         if self.is_performing_action:
             if current_time - self.action_start_time >= self.action_duration:
                 self.is_performing_action = False
@@ -674,7 +660,7 @@ class Playeronworld(Player): #1
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
         
-        # NEW: Create/update mask for pixel-perfect collision
+        #Create/update mask for pixel-perfect collision
         self.mask = pygame.mask.from_surface(self.image)
 
         # Only apply physics if not performing an action
@@ -789,7 +775,7 @@ class generateworld:
         self.gen_world(number_levels=self.number_levels)
         self.init_player()
 
-        # NEW: Health bar tracking for player (initialize after player creation)
+        #Health bar tracking for player (initialize after player creation)
         self.health_display_time = 3000  # 3 seconds in ms
         self.last_health_change = 0      # Timer start (0 means no recent damage)
         self.prev_player_health = self.player.current_health if self.player else 100  # Track previous health
@@ -1397,7 +1383,7 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-            #drawbar#==============
+            #===== drawbar =====#
             hotbar_slots = self.hotbar_slots
             total_slots = len(hotbar_slots)
             slot_w = self.hotbar_slot_size
@@ -1439,7 +1425,7 @@ class generateworld:
                 count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
                 self.screen.blit(count_surf, count_rect)
             
-            # ==== NEW: DRAW ENEMIES ==== #
+            # ==== DRAW ENEMIES ==== #
             # Only draw enemies in current scene or adjacent scenes for performance
             current_scene_start = self.current_scene * screen_width
             current_scene_end = (self.current_scene + 1) * screen_width

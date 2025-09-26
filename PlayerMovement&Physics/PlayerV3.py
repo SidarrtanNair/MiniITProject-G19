@@ -196,7 +196,8 @@ def gender_selection_screen():
                 
 
         pygame.display.update()
-        clock.tick(FPS)
+    return selected_gender
+    clock.tick(FPS)
 
     return selected_gender
 
