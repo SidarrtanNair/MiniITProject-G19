@@ -2,7 +2,7 @@ import pygame
 from scene import generateworld
 import time ,os
 
-#=================INIT=============#
+#=================INIT================================================================================#
 pygame.init()
 click_sound = pygame.mixer.Sound("Map\\Sounds\\user-interface-click-234656.mp3")
 click_sound.set_volume(0.5)
@@ -15,13 +15,22 @@ timer = pygame.time.Clock()
 font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
 
-background = pygame.image.load("Map\\BACKGROUND\\sforest.png")
+background = pygame.image.load("Map\\BACKGROUND\\Menubackground.png")
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))    
 
 STATE = "intro"
 volume = 0.5 
 world = None
 introplay = 0
+
+#=====================UIBUTTONIMAGES=============================================================================#
+ui_images = {
+    "exit": pygame.image.load("Map\\UI+LOGO\\exit.png").convert_alpha(),
+    "exit_menu": pygame.image.load("Map\\UI+LOGO\\exitmainmenu.png").convert_alpha(),
+    "settings": pygame.image.load("Map\\UI+LOGO\\settings.png").convert_alpha(),
+    "new_game": pygame.image.load("Map\\UI+LOGO\\newgame.png").convert_alpha(),
+    "continue": pygame.image.load("Map\\UI+LOGO\\continue.png").convert_alpha(),
+    "credits": pygame.image.load("Map\\UI+LOGO\\credits.png").convert_alpha() }
 
 #=============Start=================#
 def play_click():
@@ -30,16 +39,24 @@ def play_click():
 
 def play_menu_music():
     pygame.mixer.music.load( "menu_music.mp3")
-    pygame.mixer.music.set_volume(0.5)  # adjust as you like
-    pygame.mixer.music.play(-1)  # loop forever
-
+    pygame.mixer.music.set_volume(0.5)  
+    pygame.mixer.music.play(-1)  
 
 #========Opening===============#
 def intro_sequence():
     time.sleep(0.5)
 
     logo1 = pygame.image.load("Map\\BACKGROUND\\logo.png").convert_alpha()
-    logo1 = pygame.transform.scale(logo1, (WIDTH//2, HEIGHT//2))
+
+# Get original size
+    logo_w, logo_h = logo1.get_size()
+
+    # Scale proportionally if needed (optional: limit to screen size)
+    scale_factor = min(WIDTH / logo_w * 0.6, HEIGHT / logo_h * 0.6)  # 60% of screen
+    new_size = (int(logo_w * scale_factor), int(logo_h * scale_factor))
+    logo1 = pygame.transform.smoothscale(logo1, new_size)
+
+    # Center it
     logo1_rect = logo1.get_rect(center=(WIDTH//2, HEIGHT//2))
 
     pygame.mixer.music.load("Map\\Sounds\\intro.mp3")
@@ -112,13 +129,35 @@ def intro_sequence():
 
 #========Title Menu Screen=========#
 def title_menu_screen():
-    title_bg = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert_alpha()
+    play_menu_music()
+    title_bg = pygame.image.load("Map\\BACKGROUND\\Menubackground.png").convert_alpha()
     title_bg = pygame.transform.scale(title_bg, (WIDTH, HEIGHT))
 
-    if not pygame.mixer.music.get_busy():
-        pygame.mixer.music.load("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3")
-        pygame.mixer.music.set_volume(volume)
-        pygame.mixer.music.play(-1)
+    title_img = pygame.image.load("Map\\UI+LOGO\\title_campusofcosmos.png").convert_alpha()
+    max_width = WIDTH // 2
+    if title_img.get_width() > max_width:
+        scale = max_width / title_img.get_width()
+        title_img = pygame.transform.smoothscale(
+            title_img,
+            (int(title_img.get_width() * scale), int(title_img.get_height() * scale))
+        )
+    title_rect = title_img.get_rect(center=(WIDTH//2, HEIGHT//3))
+
+    continue_img = ui_images["continue"]
+    continue_scale = 0.5
+    continue_img = pygame.transform.smoothscale(
+        continue_img,
+        (int(continue_img.get_width() * continue_scale), int(continue_img.get_height() * continue_scale))
+    )
+    continue_rect = continue_img.get_rect(center=(WIDTH//2, HEIGHT//2 + 250))
+
+    exit_img = ui_images["exit"]
+    exit_scale = 0.5
+    exit_img = pygame.transform.smoothscale(
+        exit_img,
+        (int(exit_img.get_width() * exit_scale), int(exit_img.get_height() * exit_scale))
+    )
+    exit_rect = exit_img.get_rect(center=(WIDTH//2, continue_rect.bottom + 50))  # 30px spacing below continue
 
     fade_alpha = 0
     fade_speed = 5
@@ -127,88 +166,63 @@ def title_menu_screen():
     while running:
         timer.tick(fps)
         screen.fill((0, 0, 0))
+        screen.blit(title_bg, (0, 0))
 
-        bg_surf = title_bg.copy()
         if fade_alpha < 255:
             fade_alpha += fade_speed
-        bg_surf.set_alpha(fade_alpha)
-        screen.blit(bg_surf, (0, 0))
+        faded_title = title_img.copy()
+        faded_title.set_alpha(fade_alpha)
+        screen.blit(faded_title, title_rect)
 
-        title_text = title_font.render("Campus of Cosmos", True, "white")
-        title_text.set_alpha(fade_alpha)
-        screen.blit(title_text, (WIDTH//2 - title_text.get_width()//2, HEIGHT//3))
-
-        menu_btn = pygame.draw.rect(screen, 'white', [WIDTH//2-280, HEIGHT-100, 260, 60], 0, 5)
-        pygame.draw.rect(screen, 'dark gray', [WIDTH//2-280, HEIGHT-100, 260, 60], 5, 5)
-        screen.blit(font.render('Play', True, 'black'), (WIDTH//2-190, HEIGHT-85))
-
-        exit_btn = pygame.draw.rect(screen, 'white', [WIDTH//2+20, HEIGHT-100, 260, 60], 0, 5) 
-        pygame.draw.rect(screen, 'dark gray', [WIDTH//2+20, HEIGHT-100, 260, 60], 5, 5)
-        screen.blit(font.render('Exit Game', True, 'black'), (WIDTH//2+90, HEIGHT-85))
+        continue_btn = screen.blit(continue_img, continue_rect)
+        exit_btn = screen.blit(exit_img, exit_rect)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
 
-        if menu_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+        if continue_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
             play_click()
+            pygame.time.wait(200)
             running = False
             return "menu"
         if exit_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
             play_click()
+            pygame.time.wait(200)
             pygame.quit()
             exit()
 
         pygame.display.flip()
 
 #========Other Screens=========#
-def draw_game():
-    title_text = title_font.render("Campus of Cosmos", True, "white")
-    screen.blit(title_text, (WIDTH//2 - title_text.get_width()//2, HEIGHT//3))
-
-    menu_btn = pygame.draw.rect(screen, 'white', [WIDTH//2-280, HEIGHT-100, 260, 60], 0, 5)
-    pygame.draw.rect(screen, 'dark gray', [WIDTH//2-280, HEIGHT-100, 260, 60], 5, 5)
-    screen.blit(font.render('Play', True, 'black'), (WIDTH//2-190, HEIGHT-85))
-
-    exit_btn = pygame.draw.rect(screen, 'white', [WIDTH//2+20, HEIGHT-100, 260, 60], 0, 5) 
-    pygame.draw.rect(screen, 'dark gray', [WIDTH//2+20, HEIGHT-100, 260, 60], 5, 5)
-    screen.blit(font.render('Exit Game', True, 'black'), (WIDTH//2+90, HEIGHT-85))
-
-    if menu_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-        play_click()
-        return "menu"
-    if exit_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-        play_click()
-        pygame.quit()
-        exit()
-    return "game"
-
 def draw_menu():
     panel = pygame.Surface((WIDTH//4, HEIGHT//1.25), pygame.SRCALPHA)
     panel.fill((128, 128, 128, 180))  
     screen.blit(panel, (0, HEIGHT//6))
-    btns = ["New Game", "Continue", "Settings", "Credits", "Exit Main Menu"]
-    positions = [20, 90, 160, 230, HEIGHT-100]
-    for i, text in enumerate(btns):
-        btn = pygame.draw.rect(screen, 'white', [0, HEIGHT//6 + positions[i] if i<4 else positions[i], WIDTH//4, 50], 0, 5)
-        pygame.draw.rect(screen, 'dark gray', [0, HEIGHT//6 + positions[i] if i<4 else positions[i], WIDTH//4, 50], 5, 5)
-        txt_surf = font.render(text, True, 'black')
-        txt_rect = txt_surf.get_rect(center=btn.center)
-        screen.blit(txt_surf, txt_rect)
-        if btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+    btns = [
+        ("new_game", "new_game"),
+        ("continue", "continue"),
+        ("settings", "settings"),
+        ("credits", "credits"),
+        ("exit_menu", "game")]
+    positions = [20, 110, 200, 290, HEIGHT-150]
+
+    for i, (key, state) in enumerate(btns):
+        img = ui_images[key]
+        max_width = WIDTH//4 - 40
+        if img.get_width() > max_width:
+            scale = max_width / img.get_width()
+            img = pygame.transform.smoothscale(
+                img,
+                (int(img.get_width() * scale), int(img.get_height() * scale))
+            )
+
+        btn_rect = screen.blit(img, (20, HEIGHT//6 + positions[i] if i < 4 else positions[i]))
+
+        if btn_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
             play_click()
-            if text == "New Game": return "new_game"
-            elif text == "Continue": 
-                pygame.mixer.unpause()
-                return "continue"
-            elif text == "Settings": 
-                return "settings"
-            elif text == "Credits": 
-                return "credits"
-            elif text == "Exit Main Menu":
-                play_menu_music()
-                return "game"
+            return state
     return "menu"
 
 def pause_menu(screen, frozenbg):
@@ -240,7 +254,7 @@ def pause_menu(screen, frozenbg):
                     return "exit"
 def play_menu_music():
     if not pygame.mixer.music.get_busy(): 
-        pygame.mixer.music.stop() # only start if nothing else is playing
+        pygame.mixer.music.stop() 
         pygame.mixer.music.load("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3")
         pygame.mixer.music.set_volume(volume + 1)
         pygame.mixer.music.play(-1)
@@ -280,48 +294,83 @@ def draw_continue():
 
 
 pygame.mixer_music.set_volume(1.0)
-# Initialize volume at 100%
 volume = 1.0
 pygame.mixer.music.set_volume(volume)
 
 def draw_settings():
     global volume
     screen.fill("black")
-    screen.blit(font.render("Settings", True, "white"), (WIDTH//3, HEIGHT//10))
+    title_img = ui_images["settings"]
+    max_width = WIDTH//2
+    if title_img.get_width() > max_width:
+        scale = max_width / title_img.get_width()
+        title_img = pygame.transform.smoothscale(
+            title_img,
+            (int(title_img.get_width()*scale), int(title_img.get_height()*scale))
+        )
+    screen.blit(title_img, (WIDTH//3, HEIGHT//10))
 
-    # Back button
-    back_btn = pygame.draw.rect(screen, 'white', [10, 10, 150, 40], 0, 5)
-    screen.blit(font.render("Back", True, "black"), (20, 15))
-
-    # Volume slider
     slider_x, slider_y, slider_w, slider_h = WIDTH//4, HEIGHT//2, 500, 40
     pygame.draw.rect(screen, "gray", [slider_x, slider_y, slider_w, slider_h])
-    # Slider fill based on current volume
     pygame.draw.rect(screen, "white", [slider_x, slider_y, int(volume*slider_w), slider_h], border_radius=5)
     screen.blit(font.render(f"Volume: {int(volume*100)}%", True, "blue"), (slider_x, slider_y-50))
 
-    # Adjust volume if slider is clicked
     if pygame.mouse.get_pressed()[0]:
         mx, my = pygame.mouse.get_pos()
         if slider_x <= mx <= slider_x+slider_w and slider_y-20 <= my <= slider_y+slider_h+20:
             volume = (mx - slider_x) / slider_w
             pygame.mixer.music.set_volume(volume)
-
-    # Back button click
-    if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+    
+    back_img = ui_images["exit_menu"]
+    max_width = 300
+    if back_img.get_width() > max_width:
+        scale = max_width / back_img.get_width()
+        back_img = pygame.transform.smoothscale(
+            back_img,
+            (int(back_img.get_width() * scale), int(back_img.get_height() * scale))
+        )
+    back_rect = screen.blit(back_img, (10, 10))
+    if back_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+        play_click()
         return "menu"
 
     return "settings"
 
 
+
 def draw_credits():
     screen.fill("black")
-    screen.blit(font.render("insert funny image in credits screen", True, "white"), (WIDTH//3, HEIGHT//2))
-    back_btn = pygame.draw.rect(screen, 'white', [10, 10, 150, 40], 0, 5)
-    screen.blit(font.render("Back", True, "black"), (20, 15))
-    if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+
+    title_img = ui_images["credits"]
+    max_width = WIDTH//2
+    if title_img.get_width() > max_width:
+        scale = max_width / title_img.get_width()
+        title_img = pygame.transform.smoothscale(
+            title_img,
+            (int(title_img.get_width()*scale), int(title_img.get_height()*scale))
+        )
+    title_rect = title_img.get_rect(center=(WIDTH//2, HEIGHT//6))
+    screen.blit(title_img, title_rect)
+
+    funny_text = font.render("insert funny image in credits screen", True, "white")
+    screen.blit(funny_text, (WIDTH//2 - funny_text.get_width()//2, HEIGHT//2))
+
+    # Back button
+    back_img = ui_images["exit_menu"]
+    max_width = 300
+    if back_img.get_width() > max_width:
+        scale = max_width / back_img.get_width()
+        back_img = pygame.transform.smoothscale(
+            back_img,
+            (int(back_img.get_width() * scale), int(back_img.get_height() * scale))
+        )
+    back_rect = screen.blit(back_img, (20, 20))
+    if back_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+        play_click()
         return "menu"
+
     return "credits"
+
 
 #========Main Loop=========#
 run = True
@@ -335,7 +384,7 @@ while run:
         STATE = title_menu_screen()
 
     if STATE == "game":
-        STATE = draw_game()
+        STATE = title_menu_screen()
     elif STATE == "menu":
         STATE = draw_menu()
     elif STATE == "new_game":

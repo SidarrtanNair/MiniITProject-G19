@@ -133,7 +133,8 @@ class Player:
         if self.rect.right > SCREEN_WIDTH:
             self.rect.right = SCREEN_WIDTH
         self.hitbox.center = self.rect.center
-
+        self.hitbox = self.rect.inflate(-60, -10)
+        
     def move(self, left, right, jump):
         if jump and not self.in_air:
             self.vel_y = self.jump_speed

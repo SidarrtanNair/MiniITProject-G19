@@ -6,7 +6,7 @@ parent_directory = os.path.dirname(current_directory)
 player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
 sys.path.append(player_directory)
 
-from PlayerV3 import Player, load_animations, gender_selection_screen , main
+from PlayerV3 import Player, load_animations, gender_selection_screen 
 from PlayerV3 import IDLE, WALK, JUMP, SCALE
 # =====PLAYER================================================================================================================= #
 class Playeronworld(Player): #1
@@ -62,35 +62,43 @@ class Playeronworld(Player): #1
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
         self.vel_y += self.gravity
+
         if not self.check_collision(0, self.vel_y):
             self.rect.y += self.vel_y
+
         else:
             if self.vel_y > 0:  
                 self.vel_y = 0
                 self.in_air = False
+
             elif self.vel_y < 0:  
                 self.vel_y = 0
+
         if not self.check_collision(self.vel_x, 0):
             self.rect.x += self.vel_x
+
         if self.rect.left < 0:
             self.rect.left = 0
+
         if self.rect.right > self.world_width:
             self.rect.right = self.world_width
+
         self.hitbox.center = self.rect.center
-    
+        self.hitbox = self.rect.inflate(-60, -10)
+
     # === sounds ===
-    # footsteps (timed, not spam)
         if self.vel_x != 0 and not self.in_air:
-            if current_time - self.last_step_time > 300:  # 300ms per step
+            if current_time - self.last_step_time > 300:  
                 pygame.mixer.Channel(1).play(self.parent.sounds["footstep"])
                 self.last_step_time = current_time
 
-        # jump (trigger only at jump start)
         if self.vel_y < 0 and not self.jump_played:
             self.parent.sounds["jump"].play()
             self.jump_played = True
+
         if not self.in_air:
             self.jump_played = False
+
     #=============Scenecam===============#
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
@@ -128,11 +136,17 @@ class generateworld:
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
+        #===========INIT=============#
         self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
+        # === UI assets ===
+        self.hotbar_image= pygame.image.load("Map\\UI+LOGO\\hotbar_9slots.png").convert_alpha()
+
+        self.inventory_bg = pygame.image.load("Map\\UI+LOGO\\inventory.png").convert_alpha()
+
 
         self.show_fullmap = False
-        self.fullmap_scale = 0.1  # adjust for performance vs detail
+        self.fullmap_scale = 0.1  #(will try 0.2, might be too big)
         self.fullmap_surf = None
 
         self.blocklibrary = {
@@ -146,7 +160,9 @@ class generateworld:
                 pygame.image.load("Map\\BLOCK\\dirtstone_block_gradient_1_resize.png").convert(),(32,32)),
             'stone': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\stone_block_resize.png").convert(), (32, 32)),
-            'bush':pygame.transform.scale(
+            'stone_bricks': pygame.transform.scale(
+                pygame.image.load("Map\\BLOCK\\stone_brick_block.png").convert_alpha(), (32,32)),
+            'bush': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\grass_resize.png").convert_alpha(), (32, 32)),
             'biggerbush':pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
@@ -154,6 +170,8 @@ class generateworld:
                 pygame.image.load("Map\\BLOCK\\tree_wood_stump.png").convert_alpha(), (32, 32)),
             'tree_log': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_wood.png").convert_alpha(), (32, 32)),
+            'tree_top': pygame.transform.scale(
+                pygame.image.load("Map\\BLOCK\\tree_middlemiddle.png").convert_alpha(),(32,32)),
             'tree_topleft': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_top_left.png").convert_alpha(), (32,32)),
             'tree_topright': pygame.transform.scale(
@@ -188,19 +206,17 @@ class generateworld:
                 pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_pickaxe_hotbar.png').convert_alpha(),(32,32)),
             'sword' : pygame.transform.scale(
                 pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_sword_hotbar.png').convert_alpha(),(32,32)),
-                
-            
-
         }
-       #==========checkthesize=========#
+        self.blocks = [] 
+          #==========size=========#
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
-        
-        self.blocks = []  
+        #levelcountar
         self.seed = None
         self.set_seed()
         self.number_levels = 5
         self.gen_world(number_levels=self.number_levels)
+
         self.init_player()
         self.current_scene = 0  
         self.highlight = False
@@ -208,10 +224,7 @@ class generateworld:
         self.pause_callback = pause_callback
 
         # =====Inventory/Hotbar Setup========= #
-        # Each slot: (block_type, count)
         self.hotbar_slots = [
-            ("dirt", 10),
-            ("stone", 5),
             (None, 0),
             (None, 0),
             (None, 0),
@@ -219,14 +232,16 @@ class generateworld:
             (None, 0),
             (None, 0),
             (None, 0),
-            # ...
+            (None, 0),
+            (None, 0),
         ]
-
+        #Numberofblockstxt#
         self.hotbar_slot_size = 40
         self.hotbar_padding = 6
         self.font = pygame.font.SysFont(None, 20)
+        
 
-        # ===== Inventory/Hotbar Dragging ===== #
+        #==========================Inventory n Hotbar Dragging=======================#
         self.dragging_item = None
         self.dragging_item_image = None
         self.dragging_index = None
@@ -239,8 +254,7 @@ class generateworld:
         self.inventory_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         
         self.inventory_slots = [None] * (self.inventory_cols * self.inventory_rows)
-        self.inventory_slots[0] = ("sword", 1)
-        self.inventory_slots[1] = ("pickaxe", 1)
+
         self.dragging_item = None
         self.dragging_slot = None
   
@@ -250,7 +264,8 @@ class generateworld:
         self.show_crafting = False
         self.recipes = {
             "wood_planks": {"tree_log": 1},
-            "pickaxe": {"aetherium":3 , "wood_planks":1 }
+            "pickaxe": {"aetherium":3 , "wood_planks":1 },
+            "stone_bricks": {"stone":1},
         }
         self.crafting_font = pygame.font.SysFont(None, 32)
         self.crafting_scroll = 0
@@ -326,12 +341,12 @@ class generateworld:
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
-        cols = screen_width // self.block_width
+        colums = screen_width // self.block_width
         rows = screen_height // self.block_height
 
         for level in range(number_levels):
-            for x in range(cols):
-                noise_value = noise.noise2((x + level * cols) * 0.1, 0)
+            for x in range(colums):
+                noise_value = noise.noise2((x + level * colums) * 0.1, 0)
                 base = rows // 4
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
@@ -362,7 +377,7 @@ class generateworld:
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
                         texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
 
-                    rect = texture.get_rect(topleft=((x + level * cols) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
                     # randomly add trees
@@ -457,7 +472,7 @@ class generateworld:
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
-        cols = screen_width // self.block_width
+        colums = screen_width // self.block_width
         rows = screen_height // self.block_height
 
         # Hell background
@@ -465,8 +480,8 @@ class generateworld:
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
 
         for level in range(number_levels):
-            for x in range(cols):
-                noise_value = noise.noise2((x + level * cols) * 0.1, 0)
+            for x in range(colums):
+                noise_value = noise.noise2((x + level * colums) * 0.1, 0)
                 base = rows // 4
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
@@ -490,7 +505,7 @@ class generateworld:
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
                         texture.fill((int(255*factor), int(100*factor), int(50*factor)), special_flags=pygame.BLEND_MULT)
 
-                    rect = texture.get_rect(topleft=((x + level * cols) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
                     # Random fire blocks on top of magma
@@ -565,6 +580,21 @@ class generateworld:
         if self.player:
             self.init_player()
 
+    def add_to_inventory(self, bloktype, amount=1):
+    # Try stacking in inventory
+        for i, slot in enumerate(self.inventory_slots):
+            if slot and slot[0] == bloktype:
+                self.inventory_slots[i] = (bloktype, slot[1] + amount)
+                self.update_hotbar()
+                return
+
+        # If not found, put in first empty slot
+        for i, slot in enumerate(self.inventory_slots):
+            if slot is None:
+                self.inventory_slots[i] = (bloktype, amount)
+                self.update_hotbar()
+                return
+
     def add_to_hotbar(self, block_type):
         for i, (item, count) in enumerate(self.hotbar_slots):
             if item == block_type:
@@ -599,6 +629,8 @@ class generateworld:
         inv_height = self.inventory_rows * self.inventory_slot_size + (self.inventory_rows - 1) * self.inventory_padding
         inv_x = (self.screen.get_width() - inv_width) // 2
         inv_y = (self.screen.get_height() - inv_height) // 2
+        invbackground = pygame.transform.scale(self.inventory_bg,(inv_width,inv_height))
+        self.screen.blit(invbackground,(inv_x,inv_y))
 
         for row in range(self.inventory_rows):
             for col in range(self.inventory_cols):
@@ -623,16 +655,62 @@ class generateworld:
                         count_rect = count_surf.get_rect(bottomright=(slot_rect.right-4, slot_rect.bottom-4))
                         self.screen.blit(count_surf, count_rect)
 
-                # dragging visual
+          
                 if self.dragging_slot == index and self.dragging_item:
                     item_name, count = self.dragging_item
                     icon = pygame.transform.scale(self.blocklibrary[item_name], (self.inventory_slot_size-8, self.inventory_slot_size-8))
                     mx, my = pygame.mouse.get_pos()
                     icon_rect = icon.get_rect(center=(mx, my))
                     self.screen.blit(icon, icon_rect)
+    
+
+
+
+    def draw_hotbar(self, screen, selected_index):
+        hotbar_slots = self.hotbar_slots
+        
+    
+        original_width = self.hotbar_image.get_width()
+        original_height = self.hotbar_image.get_height()
+        scale_factor = 0.2  
+        hotbar_width = int(original_width * scale_factor)
+        hotbar_height = int(original_height * scale_factor)
+        hotbar_x = (screen.get_width() - hotbar_width) // 2
+        hotbar_y = screen.get_height() - hotbar_height - 10
+        scaled_hotbar = pygame.transform.scale(self.hotbar_image, (hotbar_width, hotbar_height))
+        screen.blit(scaled_hotbar, (hotbar_x, hotbar_y))
+        
+        total_slots = 9
+        slot_width = hotbar_width // total_slots
+        slot_height = hotbar_height
+        
+      
+        for i, (item, count) in enumerate(hotbar_slots[:9]):
+
+            slot_x = hotbar_x + (i * slot_width)
+            slot_y = hotbar_y
+            
+            slot_rect = pygame.Rect(slot_x, slot_y, slot_width, slot_height)
+            
+            if i == selected_index:
+                highlight_rect = pygame.Rect(slot_x + 2, slot_y + 2, slot_width - 4, slot_height - 4)
+                pygame.draw.rect(screen, (255, 215, 0, 100), highlight_rect, 3)
+            
+            if item and item in self.blocklibrary:
+                icon_size = min(slot_width - 12, slot_height - 12)
+                icon = pygame.transform.scale(self.blocklibrary[item], (icon_size, icon_size))
+                icon_rect = icon.get_rect(center=slot_rect.center)
+                screen.blit(icon, icon_rect)
+                
+                if count > 1:
+                    count_surf = self.font.render(str(count), True, (255, 255, 255))
+                    count_rect = count_surf.get_rect(bottomright=(slot_rect.right - 4, slot_rect.bottom - 4))
+                    outline_surf = self.font.render(str(count), True, (0, 0, 0))
+                    for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                        screen.blit(outline_surf, (count_rect.x + dx, count_rect.y + dy))
+                    screen.blit(count_surf, count_rect)
 
     # ===== Inventory Drag & Drop =====
-    # ===== handle_inventory_click =====
     def handle_inventory_click(self):
         mx, my = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
@@ -642,7 +720,7 @@ class generateworld:
         inv_x = (self.screen.get_width() - inv_width) // 2
         inv_y = (self.screen.get_height() - inv_height) // 2
 
-        # start dragging
+        # ===== Start dragging =====
         if mouse_pressed[0] and not self.dragging_item:
             for row in range(self.inventory_rows):
                 for col in range(self.inventory_cols):
@@ -654,12 +732,14 @@ class generateworld:
                         self.inventory_slot_size
                     )
                     if slot_rect.collidepoint(mx, my) and self.inventory_slots[index]:
-                        self.dragging_item = self.inventory_slots[index]
+                        self.dragging_item = self.inventory_slots[index] 
                         self.dragging_slot = index
-                        self.inventory_slots[index] = None
+                        self.dragging_row = row
+                        self.dragging_col = col
+                        self.inventory_slots[index] = None  
                         return
 
-        # drop item
+        # ===== Drop item =====
         if not mouse_pressed[0] and self.dragging_item is not None:
             for row in range(self.inventory_rows):
                 for col in range(self.inventory_cols):
@@ -671,48 +751,71 @@ class generateworld:
                         self.inventory_slot_size
                     )
                     if slot_rect.collidepoint(mx, my):
-  
-                        self.inventory_slots[index], self.dragging_item = self.dragging_item, self.inventory_slots[index]
+                        dest_item = self.inventory_slots[index]
+                        src_item = self.dragging_item
 
-                        # Update hotbar if this is the top row
+                        
+                        if dest_item is None:
+                            self.inventory_slots[index] = src_item
+                            self.dragging_item = None
+
+                       
+                        elif dest_item[0] == src_item[0]:
+                            MAX_STACK = 64
+                            new_count = dest_item[1] + src_item[1]
+                            if new_count <= MAX_STACK:
+                                self.inventory_slots[index] = (dest_item[0], new_count)
+                                self.dragging_item = None
+                            else:
+                                self.inventory_slots[index] = (dest_item[0], MAX_STACK)
+                                self.dragging_item = (dest_item[0], new_count - MAX_STACK)
+
+                       
+                        else:
+                            self.inventory_slots[index] = src_item
+                            self.dragging_item = dest_item
+
                         if row == 0:
                             slot = self.inventory_slots[index]
-                            if slot:
-                                self.hotbar_slots[col] = slot  # slot is (item_type, count)
-                            else:
-                                self.hotbar_slots[col] = (None, 0)
+                            self.hotbar_slots[col] = slot if slot else (None, 0)
 
-                        # Clear dragging
-                        self.dragging_slot = None
-                        self.dragging_item = None
+                        if self.dragging_row == 0:
+                            sidx = self.dragging_slot
+                            scol = self.dragging_col
+                            slot = self.inventory_slots[sidx]
+                            self.hotbar_slots[scol] = slot if slot else (None, 0)
 
+                    
+                        if self.dragging_item is None:
+                            self.dragging_slot = None
+                            self.dragging_row = None
+                            self.dragging_col = None
                         return
-            # drop outside = return to original slot
+
+            # ===== Dropped outside → return to original slot =====
             self.inventory_slots[self.dragging_slot] = self.dragging_item
+            if self.dragging_row == 0:
+                scol = self.dragging_col
+                slot = self.inventory_slots[self.dragging_slot]
+                self.hotbar_slots[scol] = slot if slot else (None, 0)
+
             self.dragging_item = None
             self.dragging_slot = None
+            self.dragging_row = None
+            self.dragging_col = None
 
-
-    # Example: get count of a block in inventory_slots
-    def get_inventory_count(self, block_type):
-        for slot in self.inventory_slots:
-            if slot and slot[0] == block_type:
-                return slot[1]
-        return 0
 
 
     # ===== Hotbar Sync =====
     def update_hotbar(self):
-        # Map first 9 items of inventory dict to hotbar
-        inventory_items = list(self.inventory_slots.items())
-        for i in range(9):
-            if i < len(inventory_items):
-                item_name, count = inventory_items[i]
-                self.hotbar_slots[i] = item_name
-                self.hotbar_counts[i] = count
+        for i in range(9):  # first row of inventory
+            slot = self.inventory_slots[i]
+            if slot:
+                self.hotbar_slots[i] = slot
             else:
-                self.hotbar_slots[i] = None
-                self.hotbar_counts[i] = 0
+                self.hotbar_slots[i] = (None, 0)
+
+                
 
     def run(self):
         running = True
@@ -720,9 +823,6 @@ class generateworld:
         health_display_time = 3000  
         last_health_change = 0  
         screen_width = self.screen.get_width()
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_pressed = pygame.mouse.get_pressed()
-        
 
         while running:
             current_time = pygame.time.get_ticks()
@@ -811,43 +911,66 @@ class generateworld:
                     mx, my = pygame.mouse.get_pos()
                     start_y = 40
                     indexs = self.crafting_scroll
+                    crafted_amount = 1
+
                     for i in range(self.crafting_visible):
                         if indexs >= len(self.recipes):
                             break
-                        item = list(self.recipes.keys())[indexs]
-                        reqs = self.recipes[item]
-                        rect = pygame.Rect(20, start_y + i*30, 160, 30)
+
+                        crafted_item = list(self.recipes.keys())[indexs]
+                        reqs = self.recipes[crafted_item]
+
+                        rect = pygame.Rect(20, start_y + i * 30, 160, 30)
+
                         if rect.collidepoint(mx, my):
-                            if all(self.inventory_slots.get(mat, 0) >= amount for mat, amount in reqs.items()):
-                                
+        
+                            if all(inventory_counts.get(mat, 0) >= amount for mat, amount in reqs.items()):
+                                if crafted_item == "wood_planks":
+                                    crafted_amount = 4 
+                                elif crafted_item == "stone_bricks":
+                                    crafted_amount = 4
+
+                                # consume materials from inventory
                                 for mat, amount in reqs.items():
-                                    self.inventory_slots[mat] -= amount
+                                    remaining = amount
+                                    for idx, slot in enumerate(self.inventory_slots):
+                                        if slot and slot[0] == mat:
+                                            item_name, count = slot
+                                            if count > remaining:
+                                                self.inventory_slots[idx] = (item_name, count - remaining)
+                                                remaining = 0
+                                                break
+                                            else:
+                                                remaining -= count
+                                                self.inventory_slots[idx] = None
 
-                                    
-                                    consumed = self.consume_from_hotbar(mat, amount)
-
-            
-                                if item == "wood_planks":
-                                    
-                                    self.add_to_hotbar("wood_planks", 4)
-                                    self.inventory_slots["wood_planks"] += 4
-                                    self.sounds["craft"].play()
-
+                                # add crafted items to inventory
+                                self.add_to_inventory(crafted_item, crafted_amount)
+                                self.update_hotbar()
+                                self.sounds["craft"].play()
 
                         indexs += 1
-                
+
+
+
+                                # add crafted item using your existing system
+                        
+
+                                
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
                     mouse_position = pygame.mouse.get_pos()
                     world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
                     if self.player:
                         player_center = self.player.rect.center
                         distance = ((world_mouse[0] - player_center[0])**2 + (world_mouse[1] - player_center[1]) **2) **0.5
+
                         if distance <= radius:  
                             if event.type == pygame.MOUSEBUTTONDOWN and event.button ==1 :  
                                 for block in self.blocks:
                                     if block["rect"].collidepoint(world_mouse):
                                         removed_block = block
                                         self.blocks.remove(block)
+
                                         bloktype = removed_block.get("type")
                                         added = False
 # Try to find existing slot
@@ -862,13 +985,8 @@ class generateworld:
                                                 if slot is None:
                                                     self.inventory_slots[i] = (bloktype, 1)
                                                     break
-                                        # Sync hotbar
-                                        for i in range(9):
-                                            slot = self.inventory_slots[i]
-                                            if slot:
-                                                self.hotbar_slots[i] = slot
-                                            else:
-                                                self.hotbar_slots[i] = (None,0)
+                                        self.update_hotbar()           
+                                    
                                             
 
                                         self.sounds["block_break"].play()
@@ -913,7 +1031,16 @@ class generateworld:
                                 })
                                 self.sounds["block_place"].play()
 
-                               
+                                for i, slot in enumerate(self.inventory_slots) :
+                                    if slot and slot[0] == selected_type:
+                                        new_count = slot[1] - 1
+                                        if new_count > 0:
+                                            self.inventory_slots[i] = (selected_type,new_count)
+                                        else:
+                                            self.inventory_slots[i] = None
+                                        break
+                                self.update_hotbar()
+                                
                                 new_count = selected_count - 1
                                 if new_count > 0:
                                     self.hotbar_slots[self.selected_index] = (selected_type, new_count)
@@ -972,46 +1099,11 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-            #drawbar#==============
-            hotbar_slots = self.hotbar_slots
-            total_slots = len(hotbar_slots)
-            slot_w = self.hotbar_slot_size
-            slot_h = self.hotbar_slot_size
-            hotbar_w = total_slots * slot_w + (total_slots - 1) * self.hotbar_padding
-            hotbar_x = (screen_width - hotbar_w) // 2
-            hotbar_y = self.screen.get_height() - slot_h - 20
 
-            for i, bloktype in enumerate(hotbar_slots):
-                sx = hotbar_x + i * (slot_w + self.hotbar_padding)
-                sy = hotbar_y
-                rect = pygame.Rect(sx, sy, slot_w, slot_h)
-                pygame.draw.rect(self.screen, (50,50,50), rect)  
-                
-                if i == self.selected_index:
-                    pygame.draw.rect(self.screen, (255,215,0), rect, 3)  
-                else:
-                    pygame.draw.rect(self.screen, (0,0,0), rect, 2)
-                
-                hotbartexture = None
-                if bloktype and bloktype in self.blocklibrary:
-                    hotbartexture = self.blocklibrary.get(bloktype)
+            #==================Drawbar==========================#
+            # Replace all the hotbar drawing code with just this line:
+            self.draw_hotbar(self.screen, self.selected_index)
 
-                if hotbartexture:
-                    icon = pygame.transform.scale(hotbartexture, (slot_w - 8, slot_h - 8))
-                    icon_rect = icon.get_rect(center=rect.center)
-                    self.screen.blit(icon, icon_rect)
-                
-                count = 0
-                if bloktype:
-                    slot_type, slot_count = self.hotbar_slots[i]
-                    if slot_type == bloktype and slot_count > 0:
-                        count = slot_count
-
-                    else:
-                        count = self.get_inventory_count(bloktype)
-                count_surf = self.font.render(str(count), True, (255,255,255))
-                count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
-                self.screen.blit(count_surf, count_rect)
                 #===========Heathdissapearlogic============#
             if self.player:
                 if current_time - last_health_change <= health_display_time:
@@ -1020,30 +1112,74 @@ class generateworld:
 
            
             if self.show_crafting:
-                panel_width = 200
+                panel_width = 300
                 panel_height = self.screen.get_height()
                 panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-                panel.fill((30,30,30,180))
-                self.screen.blit(panel, (0,0))
+                panel.fill((30, 30, 30, 180))
+                self.screen.blit(panel, (0, 0))
+
+                # === build inventory counts as a dict ===
+                inventory_counts = {}
+                for slot in self.inventory_slots:
+                    if slot:  # slot = (item, count)
+                        item, count = slot
+                        inventory_counts[item] = inventory_counts.get(item, 0) + count
 
                 start_y = 40
                 indexs = self.crafting_scroll
+                slot_height = 36
+
                 for i in range(self.crafting_visible):
                     if indexs >= len(self.recipes):
                         break
-                    item = list(self.recipes.keys())[indexs]
-                    reqs = self.recipes[item]
-                    craftable = all(self.inventory_slots.get(mat, 0) >= amount for mat, amount in reqs.items())
-                    color = (255,255,255) if craftable else (150,50,50)
-                    
-                    if item == "wood_planks":
-                        text = f"{item} x4: tree_log x1"
-                    else:
-                        text = f"{item}: " + ", ".join([f"{m}x{a}" for m,a in reqs.items()])
 
-                    txt = self.crafting_font.render(text, True, color)
-                    self.screen.blit(txt, (20, start_y + i*30))
+                    crafted_item = list(self.recipes.keys())[indexs]
+                    reqs = self.recipes[crafted_item]
+
+                    row_y = start_y + i * slot_height
+                    x_offset = 20
+
+                    # --- check if player has enough materials ---
+                    craftable = True
+                    for mat, amount in reqs.items():
+                        total = inventory_counts.get(mat, 0)
+                        if total < amount:
+                            craftable = False
+                            break
+                    color = (255, 255, 255) if craftable else (150, 50, 50)
+
+                    # --- draw crafted item icon ---
+                    if crafted_item in self.blocklibrary:
+                        icon = pygame.transform.scale(self.blocklibrary[crafted_item], (32, 32))
+                        self.screen.blit(icon, (x_offset, row_y))
+                    x_offset += 36
+
+                    # --- draw crafted amount ---
+                    crafted_amount = 4 if crafted_item in ["wood_planks", "stone_bricks"] else 1
+                    count_surf = self.crafting_font.render(f"x{crafted_amount}", True, color)
+                    self.screen.blit(count_surf, (x_offset, row_y + 8))
+                    x_offset += 36
+
+                    # --- draw arrow separator ---
+                    arrow_surf = self.crafting_font.render("←", True, color)
+                    self.screen.blit(arrow_surf, (x_offset, row_y + 8))
+                    x_offset += 16
+
+                    # --- draw material icons + counts ---
+                    for mat, amount in reqs.items():
+                        if mat in self.blocklibrary:
+                            mat_icon = pygame.transform.scale(self.blocklibrary[mat], (32, 32))
+                            self.screen.blit(mat_icon, (x_offset, row_y))
+                        x_offset += 36
+
+                        amount_surf = self.crafting_font.render(f"x{amount}", True, color)
+                        self.screen.blit(amount_surf, (x_offset, row_y + 8))
+                        x_offset += 36
+
                     indexs += 1
+
+
+
             if self.show_inventory:
                 self.draw_inventory()
             
@@ -1122,5 +1258,6 @@ class generateworld:
         if candidates:
             return min(b["rect"].top for b in candidates)
         return self.screen.get_height() - self.block_height
+    
 if __name__ == "__main__":
     generateworld().run()
