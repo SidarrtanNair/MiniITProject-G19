@@ -1,5 +1,5 @@
 import pygame
-import spritesheet 
+import spritesheet
 import os
 import sys
 
