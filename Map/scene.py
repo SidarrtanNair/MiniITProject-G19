@@ -2,13 +2,17 @@ import pygame , random , time , sys , os
 from opensimplex import *
 
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
-parent_directory = os.path.dirname(current_directory)
-player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
-sys.path.append(player_directory)
 
-from PlayerV3 import Player, load_animations, gender_selection_screen 
-from PlayerV3 import IDLE, WALK, JUMP, SCALE
+
+# Force Python to see the project root (where main.py is located)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Now import from PlayerMovementPhysics
+from PlayerMovementPhysics.PlayerV3 import Player, load_animations, gender_selection_screen
+from PlayerMovementPhysics.PlayerV3 import IDLE, WALK, JUMP ,SCALE
+
 # =====PLAYER================================================================================================================= #
 class Playeronworld(Player): #1
     def __init__(self, animation_list, blocks, block_width, block_height, world_width,parent):
@@ -323,10 +327,10 @@ class generateworld:
     def init_player(self):
         gender = gender_selection_screen()
         if gender == 'male':
-            sprite_path = os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_spriteV8_flipped.png')
+            sprite_path = os.path.join(project_root, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
         else:
-            sprite_path = os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_spriteV1_flipped.png')
+            sprite_path = os.path.join(project_root, 'PlayerMovementPhysics', 'Sprite_Img', 'female_spriteV1_flipped.png')
             sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
         animation_list = load_animations(sprite_sheet_image)
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
