@@ -347,7 +347,7 @@ class generateworld:
         font = pygame.font.SysFont("Consolas", 24)
         line_spacing = 30
         text_color = (255, 255, 255)
-        type_speed = 60
+        type_speed = 40
 
         portrait_offset_x = 0
         if portrait_img:
@@ -370,7 +370,7 @@ class generateworld:
         box_y = self.screen.get_height() - box_height - 20
 
         while waiting_for_click:
-            # Draw semi-transparent dialogue box on top of gameplay
+            
             box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
             box_surf.fill((0, 0, 0, 200))
             pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
@@ -899,18 +899,13 @@ class generateworld:
             else:
                 portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
 
-            text_sound = self.sounds.get("typing")  # blip for typewriter effect
-
             self.show_dialogue(
-                "Where am I, better get back through that portal, I have an assignment to finish",
+                "Where tf am I, better get back through that portal, I have an assignment to finish!",
                 portrait_img=portrait_img,
-                text_sound=text_sound
             )
             pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
             pygame.mixer.music.set_volume(self.volume)
             pygame.mixer.music.play(-1)
-
-
 
         running = True
         radius = 7 * self.block_width 

@@ -345,7 +345,6 @@ def draw_new_game():
         play_cutscene(cutscene_female, music="Map\\MusicMan\\storymusic1.mp3")
 
     world = generateworld(pause_callback=pause_menu, gender=character_choice) 
-    world.play_music()
 
     state = world.run()
     if state == "menu":
