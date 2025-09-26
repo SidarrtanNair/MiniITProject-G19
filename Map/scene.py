@@ -83,10 +83,14 @@ class Playeronworld(Player): #1
         if self.rect.right > self.world_width:
             self.rect.right = self.world_width
 
+        if self.rect.bottom > self.parent.screen.get_height():
+            self.rect.bottom = self.parent.screen.get_height()
+            self.vel_y = 0
+            self.in_air = False
+    #==== new_hitbox ===+=#
         self.hitbox.center = self.rect.center
         self.hitbox = self.rect.inflate(-60, -10)
-
-    # === sounds ===
+    # === sounds =====#
         if self.vel_x != 0 and not self.in_air:
             if current_time - self.last_step_time > 300:  
                 pygame.mixer.Channel(1).play(self.parent.sounds["footstep"])
@@ -202,6 +206,8 @@ class generateworld:
                 pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\lava_block.png').convert_alpha(),(32,32)),
             'fire_block' : pygame.transform.scale(
                 pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\fire_block.png').convert_alpha(),(32,32)),
+            'hell_block' : pygame.transform.scale(
+                pygame.image.load("Map\BLOCK\\NEXT DIMENSION\\hell_block.png").convert_alpha(),(32,32)),
             'pickaxe' : pygame.transform.scale(
                 pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_pickaxe_hotbar.png').convert_alpha(),(32,32)),
             'sword' : pygame.transform.scale(
@@ -416,17 +422,23 @@ class generateworld:
         self.fullmap_surf = pygame.Surface((world_width_blocks, world_height_blocks))
 
         for block in self.blocks:
-            color = (100, 100, 100)
             if block["type"] == "grass":
                 color = (0, 200, 0)
             elif block["type"] == "dirt":
                 color = (139, 69, 19)
+            elif block["type"] == "portal_block":
+                color = ("red")
+            elif block["type"] == "portal_energy_block":
+                color = ("purple")
+            elif block["type"] == "aetherium":
+                color = (120,81,169)
             elif block["type"] == "stone":
                 color = (150, 150, 150)
             elif block["type"] in ["tree_log", "tree_stump"]:
                 color = (139, 100, 50)
             elif block["type"] == "tree_top":
                 color = (0, 150, 0)
+            
             mx = block["rect"].x // self.block_width
             my = block["rect"].y // self.block_height
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
@@ -466,52 +478,45 @@ class generateworld:
             self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
 
             # corrupt area around portal in block units
-            self.corrupt_area(px, py, radius=15, seed=self.seed)
+            #self.corrupt_area(px, py, radius=15, seed=self.seed)
 
-    def gen_hell(self, number_levels=3):
+    def gen_hell(self, number_levels=5):
         self.blocks.clear()
-        noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
-        colums = screen_width // self.block_width
+        columns = screen_width // self.block_width
         rows = screen_height // self.block_height
 
         # Hell background
         self.background = pygame.image.load("Map\\BACKGROUND\\hellgame1.gif").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
 
-        for level in range(number_levels):
-            for x in range(colums):
-                noise_value = noise.noise2((x + level * colums) * 0.1, 0)
-                base = rows // 4
-                height = int((noise_value + 1) * 5 + base)
-                height = max(1, min(rows, height))
-                surface_y = screen_height - (height * self.block_height)
+        ground_height = rows // 4
+        surface_y = screen_height - (ground_height * self.block_height)
 
-                for y in range(height):
+        for level in range(number_levels):
+            for x in range(columns):
+                for y in range(ground_height):
                     y_px = screen_height - (y + 1) * self.block_height
-                    if y == height - 1:
-                        blocktype = "magma_block"
-                    elif y < height - 1 and random.random() < 0.05:
-                        blocktype = "lava_block"
+
+                    if y == ground_height - 1:
+                        blocktype = "hell_block"
+                    elif y == ground_height - 2:
+                        blocktype = "hell_block"
+                    elif y >= ground_height - 6:
+                        blocktype = "hell_block"
                     else:
                         blocktype = "magma_block"
 
                     texture = self.blocklibrary[blocktype].copy()
-
-                    # shading for depth
                     depth = (y_px - surface_y) // self.block_height
                     if depth > 0:
                         max_depth = 20
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
-                        texture.fill((int(255*factor), int(100*factor), int(50*factor)), special_flags=pygame.BLEND_MULT)
+                        texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
 
-                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * columns) * self.block_width, y_px))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
-                    # Random fire blocks on top of magma
-                    if blocktype == "magma_block" and random.random() < 0.08:
-                        fire_rect = self.blocklibrary['fire_block'].get_rect(topleft=(rect.x, rect.y - self.block_height))
-                        self.blocks.append({"type": "fire_block", "texture": self.blocklibrary['fire_block'], "rect": fire_rect})
                         
 
         # Build fullmap once for hell
@@ -890,7 +895,7 @@ class generateworld:
                                     self.loading_screen("Entering Hell...", 1.5)  # optional loading screen
                                     self.dimension = "hell"
                                     self.current_scene = 0
-                                    self.gen_hell(number_levels=self.number_levels)
+                                    self.gen_hell(number_levels=5)
                                     # move player to hell spawn coordinates
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
