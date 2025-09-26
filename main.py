@@ -1,10 +1,13 @@
-import pygame 
-from scene import generateworld
-import time ,os
+import pygame
+import time, os
+from Map.utils import resource_path
+from Map.scene import generateworld
+from PlayerMovementPhysics import PlayerV3
+
 
 #=================INIT================================================================================#
 pygame.init()
-click_sound = pygame.mixer.Sound("Map\\Sounds\\user-interface-click-234656.mp3")
+click_sound = pygame.mixer.Sound(resource_path("Map\\Sounds\\user-interface-click-234656.mp3"))
 click_sound.set_volume(0.5)
 
 WIDTH, HEIGHT = pygame.display.Info().current_w, pygame.display.Info().current_h
@@ -15,7 +18,7 @@ timer = pygame.time.Clock()
 font = pygame.font.Font(None, 40)
 title_font = pygame.font.Font(None, 200)
 
-background = pygame.image.load("Map\\BACKGROUND\\Menubackground.png")
+background = pygame.image.load(resource_path("Map\\BACKGROUND\\Menubackground.png"))
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))    
 
 STATE = "intro"
@@ -25,12 +28,12 @@ introplay = 0
 
 #=====================UIBUTTONIMAGES=============================================================================#
 ui_images = {
-    "exit": pygame.image.load("Map\\UI+LOGO\\exit.png").convert_alpha(),
-    "exit_menu": pygame.image.load("Map\\UI+LOGO\\exitmainmenu.png").convert_alpha(),
-    "settings": pygame.image.load("Map\\UI+LOGO\\settings.png").convert_alpha(),
-    "new_game": pygame.image.load("Map\\UI+LOGO\\newgame.png").convert_alpha(),
-    "continue": pygame.image.load("Map\\UI+LOGO\\continue.png").convert_alpha(),
-    "credits": pygame.image.load("Map\\UI+LOGO\\credits.png").convert_alpha() }
+    "exit": pygame.image.load(resource_path("Map\\UI+LOGO\\exit.png")).convert_alpha(),
+    "exit_menu": pygame.image.load(resource_path("Map\\UI+LOGO\\exitmainmenu.png")).convert_alpha(),
+    "settings": pygame.image.load(resource_path("Map\\UI+LOGO\\settings.png")).convert_alpha(),
+    "new_game": pygame.image.load(resource_path("Map\\UI+LOGO\\newgame.png")).convert_alpha(),
+    "continue": pygame.image.load(resource_path("Map\\UI+LOGO\\continue.png")).convert_alpha(),
+    "credits": pygame.image.load(resource_path("Map\\UI+LOGO\\credits.png")).convert_alpha() }
 
 #=============Start=================#
 def play_click():
@@ -38,7 +41,7 @@ def play_click():
     click_sound.play()
 
 def play_menu_music():
-    pygame.mixer.music.load( "menu_music.mp3")
+    pygame.mixer.music.load(resource_path( "menu_music.mp3"))
     pygame.mixer.music.set_volume(0.5)  
     pygame.mixer.music.play(-1)  
 
@@ -46,7 +49,7 @@ def play_menu_music():
 def intro_sequence():
     time.sleep(0.5)
 
-    logo1 = pygame.image.load("Map\\BACKGROUND\\logo.png").convert_alpha()
+    logo1 = pygame.image.load(resource_path("Map\\BACKGROUND\\logo.png")).convert_alpha()
 
 # Get original size
     logo_w, logo_h = logo1.get_size()
@@ -59,7 +62,7 @@ def intro_sequence():
     # Center it
     logo1_rect = logo1.get_rect(center=(WIDTH//2, HEIGHT//2))
 
-    pygame.mixer.music.load("Map\\Sounds\\intro.mp3")
+    pygame.mixer.music.load(resource_path("Map\\Sounds\\intro.mp3"))
     pygame.mixer.music.set_volume(volume)
     pygame.mixer.music.play()
 
@@ -93,9 +96,9 @@ def intro_sequence():
         pygame.display.flip()
 
     character_imgs = [
-        pygame.image.load("Map\\BACKGROUND\\michael.png").convert_alpha(),
-        pygame.image.load("Map\\BACKGROUND\\imran.png").convert_alpha(),
-        pygame.image.load("Map\\BACKGROUND\\siddartan.png").convert_alpha()
+        pygame.image.load(resource_path("Map\\BACKGROUND\\michael.png")).convert_alpha(),
+        pygame.image.load(resource_path("Map\\BACKGROUND\\imran.png")).convert_alpha(),
+        pygame.image.load(resource_path("Map\\BACKGROUND\\siddartan.png")).convert_alpha()
     ]
     character_names = ["Michael", "Imran", "Siddartan"]
     for i in range(3):
@@ -130,10 +133,10 @@ def intro_sequence():
 #========Title Menu Screen=========#
 def title_menu_screen():
     play_menu_music()
-    title_bg = pygame.image.load("Map\\BACKGROUND\\Menubackground.png").convert_alpha()
+    title_bg = pygame.image.load(resource_path("Map\\BACKGROUND\\Menubackground.png")).convert_alpha()
     title_bg = pygame.transform.scale(title_bg, (WIDTH, HEIGHT))
 
-    title_img = pygame.image.load("Map\\UI+LOGO\\title_campusofcosmos.png").convert_alpha()
+    title_img = pygame.image.load(resource_path("Map\\UI+LOGO\\title_campusofcosmos.png")).convert_alpha()
     max_width = WIDTH // 2
     if title_img.get_width() > max_width:
         scale = max_width / title_img.get_width()
@@ -255,7 +258,7 @@ def pause_menu(screen, frozenbg):
 def play_menu_music():
     if not pygame.mixer.music.get_busy(): 
         pygame.mixer.music.stop() 
-        pygame.mixer.music.load("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3")
+        pygame.mixer.music.load(resource_path("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3"))
         pygame.mixer.music.set_volume(volume + 1)
         pygame.mixer.music.play(-1)
 

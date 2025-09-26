@@ -1,9 +1,10 @@
 import pygame , random , time , sys , os 
 from opensimplex import *
+from .utils import resource_path
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.dirname(current_directory)
-player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
+player_directory = os.path.join(parent_directory, 'PlayerMovementPhysics')
 sys.path.append(player_directory)
 
 from PlayerV3 import Player, load_animations, gender_selection_screen 
@@ -93,7 +94,7 @@ class Playeronworld(Player): #1
     # === sounds =====#
         if self.vel_x != 0 and not self.in_air:
             if current_time - self.last_step_time > 300:  
-                pygame.mixer.Channel(1).play(self.parent.sounds["footstep"])
+                pygame.mixer.Channel(1).play(self.parent.sounds(resource_path["footstep"]))
                 self.last_step_time = current_time
 
         if self.vel_y < 0 and not self.jump_played:
@@ -141,12 +142,12 @@ class generateworld:
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
         #===========INIT=============#
-        self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
+        self.background = pygame.image.load(resource_path("Map\\BACKGROUND\\sforest.png")).convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
         # === UI assets ===
-        self.hotbar_image= pygame.image.load("Map\\UI+LOGO\\hotbar_9slots.png").convert_alpha()
+        self.hotbar_image= pygame.image.load(resource_path("Map\\UI+LOGO\\hotbar_9slots.png")).convert_alpha()
 
-        self.inventory_bg = pygame.image.load("Map\\UI+LOGO\\inventory.png").convert_alpha()
+        self.inventory_bg = pygame.image.load(resource_path("Map\\UI+LOGO\\inventory.png")).convert_alpha()
 
 
         self.show_fullmap = False
@@ -155,64 +156,65 @@ class generateworld:
 
         self.blocklibrary = {
             'aetherium': pygame.transform.scale(
-                pygame.image.load("Map\BLOCK\\aetherium_block.png").convert(), (32, 32)),
+                pygame.image.load(resource_path("Map/BLOCK/aetherium_block.png")).convert(), (32, 32)),
             'dirt': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\dirt_block_resize.png").convert(), (32, 32)),
+                pygame.image.load(resource_path("Map/BLOCK/dirt_block_resize.png")).convert(), (32, 32)),
             'grass': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\grassdirt_block_resize.png").convert(), (32, 32)),
+                pygame.image.load(resource_path("Map/BLOCK/grassdirt_block_resize.png")).convert(), (32, 32)),
             'dirtstone': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\dirtstone_block_gradient_1_resize.png").convert(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/dirtstone_block_gradient_1_resize.png")).convert(), (32, 32)),
             'stone': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\stone_block_resize.png").convert(), (32, 32)),
+                pygame.image.load(resource_path("Map/BLOCK/stone_block_resize.png")).convert(), (32, 32)),
             'stone_bricks': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\stone_brick_block.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/stone_brick_block.png")).convert_alpha(), (32, 32)),
             'bush': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\grass_resize.png").convert_alpha(), (32, 32)),
-            'biggerbush':pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/grass_resize.png")).convert_alpha(), (32, 32)),
+            'biggerbush': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/shrub.png")).convert_alpha(), (32, 32)),
             'tree_stump': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_wood_stump.png").convert_alpha(), (32, 32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_wood_stump.png")).convert_alpha(), (32, 32)),
             'tree_log': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_wood.png").convert_alpha(), (32, 32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_wood.png")).convert_alpha(), (32, 32)),
             'tree_top': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_middlemiddle.png").convert_alpha(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_middlemiddle.png")).convert_alpha(), (32, 32)),
             'tree_topleft': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_top_left.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_top_left.png")).convert_alpha(), (32, 32)),
             'tree_topright': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_top_right.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_top_right.png")).convert_alpha(), (32, 32)),
             'tree_topmiddle': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_top_middle.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_top_middle.png")).convert_alpha(), (32, 32)),
             'tree_botleft': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_bottom_left.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_bottom_left.png")).convert_alpha(), (32, 32)),
             'tree_botright': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_bottom_right.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_bottom_right.png")).convert_alpha(), (32, 32)),
             'tree_botmiddle': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_bottom_middle.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_bottom_middle.png")).convert_alpha(), (32, 32)),
             'tree_middlemiddle': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_middlemiddle.png").convert_alpha(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_middlemiddle.png")).convert_alpha(), (32, 32)),
             'tree_middleright': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_middle_right.png").convert_alpha(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_middle_right.png")).convert_alpha(), (32, 32)),
             'tree_middleleft': pygame.transform.scale(
-                pygame.image.load("Map\\BLOCK\\tree_middle_left.png").convert_alpha(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/tree_middle_left.png")).convert_alpha(), (32, 32)),
             'wood_planks': pygame.transform.scale(
-                pygame.image.load("Map\BLOCK\wooden_block_resize.png").convert_alpha(), (32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/wooden_block_resize.png")).convert_alpha(), (32, 32)),
             'portal_block': pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\portal_block.png').convert_alpha(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/NEXT DIMENSION/portal_block.png")).convert_alpha(), (32, 32)),
             'portal_energy_block': pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\portal_energy_block.png').convert_alpha(),(32,32)),
-            'magma_block' : pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\magma_block.png').convert_alpha(),(32,32)),
-            'lava_block' : pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\lava_block.png').convert_alpha(),(32,32)),
-            'fire_block' : pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\NEXT DIMENSION\\fire_block.png').convert_alpha(),(32,32)),
-            'hell_block' : pygame.transform.scale(
-                pygame.image.load("Map\BLOCK\\NEXT DIMENSION\\hell_block.png").convert_alpha(),(32,32)),
-            'pickaxe' : pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_pickaxe_hotbar.png').convert_alpha(),(32,32)),
-            'sword' : pygame.transform.scale(
-                pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_sword_hotbar.png').convert_alpha(),(32,32)),
+                pygame.image.load(resource_path("Map/BLOCK/NEXT DIMENSION/portal_energy_block.png")).convert_alpha(), (32, 32)),
+            'magma_block': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/NEXT DIMENSION/magma_block.png")).convert_alpha(), (32, 32)),
+            'lava_block': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/NEXT DIMENSION/lava_block.png")).convert_alpha(), (32, 32)),
+            'fire_block': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/NEXT DIMENSION/fire_block.png")).convert_alpha(), (32, 32)),
+            'hell_block': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/NEXT DIMENSION/hell_block.png")).convert_alpha(), (32, 32)),
+            'pickaxe': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/HOTBAR ITEMS/aetherium_pickaxe_hotbar.png")).convert_alpha(), (32, 32)),
+            'sword': pygame.transform.scale(
+                pygame.image.load(resource_path("Map/BLOCK/HOTBAR ITEMS/aetherium_sword_hotbar.png")).convert_alpha(), (32, 32)),
         }
+
         self.blocks = [] 
           #==========size=========#
         self.block_width = self.blocklibrary['dirt'].get_width()
@@ -282,20 +284,20 @@ class generateworld:
 
 
         #=======Music=============#
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")   
+        pygame.mixer.music.load(resource_path("Map\MusicMan\worldbackground.mp3"))  
         pygame.mixer.music.play(-1)
         self.volume =volume
                 # ===== Sound Effects ===== #
         self.sounds = {
-            "footstep": pygame.mixer.Sound("Map\\Sounds\\footstep_grass.mp3"),
-            "jump": pygame.mixer.Sound("Map\\Sounds\\jump.mp3"),
-            "land": pygame.mixer.Sound("Map\\Sounds\\land.mp3"),
-            "block_break": pygame.mixer.Sound("Map\\Sounds\\block_break.mp3"),
-            "block_place": pygame.mixer.Sound("Map\\Sounds\\block_place.mp3"),
-            "leaves": pygame.mixer.Sound("Map\\Sounds\\birds.wav"),
-            "craft": pygame.mixer.Sound("Map\\Sounds\\craft.mp3"),
-            "inv_open": pygame.mixer.Sound("Map\\Sounds\\inventory_open.mp3"),
-            "inv_close": pygame.mixer.Sound("Map\\Sounds\\inventory_close.mp3"),
+            "footstep": pygame.mixer.Sound(resource_path("Map\\Sounds\\footstep_grass.mp3")),
+            "jump": pygame.mixer.Sound(resource_path("Map\\Sounds\\jump.mp3")),
+            "land": pygame.mixer.Sound(resource_path("Map\\Sounds\\land.mp3")),
+            "block_break": pygame.mixer.Sound(resource_path("Map\\Sounds\\block_break.mp3")),
+            "block_place": pygame.mixer.Sound(resource_path("Map\\Sounds\\block_place.mp3")),
+            "leaves": pygame.mixer.Sound(resource_path("Map\\Sounds\\birds.wav")),
+            "craft": pygame.mixer.Sound(resource_path("Map\\Sounds\\craft.mp3")),
+            "inv_open": pygame.mixer.Sound(resource_path("Map\\Sounds\\inventory_open.mp3")),
+            "inv_close": pygame.mixer.Sound(resource_path("Map\\Sounds\\inventory_close.mp3")),
             #"hurt": pygame.mixer.Sound("Map\\Sounds\\player_hurt.mp3"),
             #"heal": pygame.mixer.Sound("Map\\Sounds\\heal.mp3"),
         }
@@ -315,7 +317,7 @@ class generateworld:
         time.sleep(duration)
 
     def play_music(self):
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        pygame.mixer.music.load(resource_path("Map\MusicMan\worldbackground.mp3"))
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
 
@@ -323,10 +325,10 @@ class generateworld:
         gender = gender_selection_screen()
         if gender == 'male':
             sprite_path = os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_spriteV8_flipped.png')
-            sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
+            sprite_sheet_image = pygame.image.load(resource_path(sprite_path)).convert_alpha()
         else:
             sprite_path = os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_spriteV1_flipped.png')
-            sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
+            sprite_sheet_image = pygame.image.load(resource_path(sprite_path)).convert_alpha()
         animation_list = load_animations(sprite_sheet_image)
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
         self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height, world_width, self)
@@ -342,7 +344,7 @@ class generateworld:
         self.seed = random.randint(0, 10**9)
 
     def gen_world(self, number_levels=3):
-        self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
+        self.background = pygame.image.load(resource_path("Map\\BACKGROUND\\sforest.png")).convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
@@ -487,7 +489,7 @@ class generateworld:
         rows = screen_height // self.block_height
 
         # Hell background
-        self.background = pygame.image.load("Map\\BACKGROUND\\hellgame1.gif").convert()
+        self.background = pygame.image.load(resource_path("Map\\BACKGROUND\\hellgame1.gif")).convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
 
         ground_height = rows // 4
