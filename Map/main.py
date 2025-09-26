@@ -1,5 +1,5 @@
 import pygame 
-from scene import generateworld
+from sceneV9 import generateworld
 import time ,os
 
 #=================INIT================================================================================#
@@ -269,6 +269,11 @@ def draw_new_game():
     world.play_music()
     state = world.run()
     if state == "menu":
+        pygame.mixer.music.stop()
+        return "menu"
+    # With:
+    state = world.run()
+    if state in ["menu", "pause"]:  # Handle both existing "pause" and new "menu"
         pygame.mixer.music.stop()
         return "menu"
 

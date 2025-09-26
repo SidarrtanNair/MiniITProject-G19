@@ -6,11 +6,10 @@ parent_directory = os.path.dirname(current_directory)
 player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
 sys.path.append(player_directory)
 
-from PlayerV4 import Player, load_base_animations, load_action_animations, gender_selection_screen , main
+from PlayerV4 import Player, load_base_animations, load_action_animations, gender_selection_screen, main
 from PlayerV4 import IDLE, WALK, JUMP, ATTACK, MINE, SCALE
-from Boss import Boss
 from Enemy import Enemy
-from Slime import Slime
+from Boss import Boss
 from spritesheet import SpriteSheet
 
 # ======== ENEMY ======== #
@@ -36,7 +35,7 @@ class Enemy(pygame.sprite.Sprite):
         self.health = 100
         self.max_health = 100
         self.attack_damage = 5  # 5% of player max health (100). Change to 100 for full player damage.
-        self.attack_cooldown = 500  # 0.5 seconds between attacks (reduced for more responsive feel)
+        self.attack_cooldown = 2500  # 1.5 seconds between attacks (reduced for more responsive feel)
         self.last_attack_time = 0
         self.is_dead = False
         
@@ -71,20 +70,34 @@ class Enemy(pygame.sprite.Sprite):
         self.find_ground()
     
     def find_ground(self):
-        # Find the nearest magma_block block below the enemy's spawn position
-        ground_y = self.rect.y + 500  # Default fallback
+        # Find the highest (smallest top y) surface block (grass or magma_block) nearby
+        ground_y = self.rect.y + (self.block_height * 10)  # Safer fallback: ~10 blocks below initial y (~320px)
         
+        # Widen search to 5 blocks radius for better detection in varied terrain
+        search_radius = self.block_width * 5
         for block in self.blocks:
-            if (block["type"] == "magma_block" and 
-                abs(block["rect"].centerx - self.rect.centerx) < self.block_width * 3):
-                if block["rect"].top > self.rect.y:
-                    ground_y = min(ground_y, block["rect"].top)
+            if (block["type"] in ["grass", "magma_block"] and 
+                abs(block["rect"].centerx - self.rect.centerx) < search_radius):
+                # No need for block.top > self.rect.y - we want the highest surface regardless
+                ground_y = min(ground_y, block["rect"].top)
         
-        # Start enemy above the ground so it falls down
-        self.rect.bottom = ground_y - 100  # Start 100 pixels above ground
+        # If no surface found (very rare), fallback to estimated screen midpoint
+        if ground_y > self.rect.y + (self.block_height * 20):  # If fallback didn't change much
+            screen_height = 720  # Approximate; adjust if your display is different (or pass as param)
+            ground_y = screen_height // 2  # Safe high position to fall from
+        
+        # Position above the ground
+        self.rect.bottom = ground_y - 50  # Reduced offset to -50px (less fall distance, safer)
         self.on_ground = False
-        self.vel_y = 0  # Start with no velocity so gravity takes effect
-    
+        self.vel_y = 0
+        
+        # NEW: Anti-overlap safety - lift up if currently overlapping any solid block
+        while self.check_collision(0, 0):
+            self.rect.y -= 5  # Move up 5px at a time until clear
+            if self.rect.top < 0:  # Prevent going off-screen top
+                self.rect.top = 0
+                break
+
     def check_collision(self, dx, dy):
         temp_rect = self.rect.copy()
         temp_rect.x += dx
@@ -246,35 +259,44 @@ class BossAnimator:
         self.current_animation = 'idle'
         self.current_frame = 0
         self.update_time = pygame.time.get_ticks()
-        self.animation_cooldown = 150  # ms, matches enemy timing
-        self.facing_right = False  # Face left initially (toward player)
-    
+        self.animation_cooldown = 150  # ms per frame
+        self.facing_right = False  # False = face left (toward player, negative x)
+        # Define which animations loop (idle, run, jump should loop; attacks/dead don't)
+        self.looping_animations = {'idle', 'run', 'jump'}
+
     def update(self):
-      current_time = pygame.time.get_ticks()
-      if current_time - self.update_time > self.animation_cooldown:
-          self.update_time = current_time
-          if self.current_animation == 'dead' and self.current_frame >= len(self.animations[self.current_animation]) - 1:
-              # Freeze on last frame for dead animation
-              return False
-          self.current_frame += 1
-          max_frames = len(self.animations[self.current_animation])
-          if self.current_frame >= max_frames:
-              if self.current_animation != 'dead':  # Loop others, but not dead
-                  self.current_frame = 0
-              return True  # Animation finished (used for attack resets)
-      return False
-    
-    def set_animation(self, animation_name):
+        current_time = pygame.time.get_ticks()
+        if current_time - self.update_time > self.animation_cooldown:
+            self.update_time = current_time
+            max_frames = len(self.animations[self.current_animation])
+            self.current_frame += 1
+            if self.current_frame >= max_frames:
+                if self.current_animation in self.looping_animations:
+                    self.current_frame = 0  # Loop back to start
+                else:
+                    self.current_frame = max_frames - 1  # Stay on last frame (e.g., for dead/attack end)
+        # Return True if at end (for non-looping anims)
+        return self.current_frame >= len(self.animations[self.current_animation]) - 1
+
+    def set_animation(self, animation_name, loop=True):
         if animation_name in self.animations and animation_name != self.current_animation:
             self.current_animation = animation_name
             self.current_frame = 0
             self.update_time = pygame.time.get_ticks()
-    
+            # Override loop if specified in config (but for simplicity, use class default)
+            if animation_name in ['attack1', 'attack2']:
+                loop = False  # Override for melee/ranged
+
+    def reset_to_idle(self):
+        self.set_animation('idle')
+
     def get_current_image(self):
         frame = self.animations[self.current_animation][self.current_frame]
-        if not self.facing_right:
+        if not self.facing_right:  # Face left by default (negative x)
             frame = pygame.transform.flip(frame, True, False)
         return frame
+
+
     
 class Fireball(pygame.sprite.Sprite):
     def __init__(self, x, y, target_x, fireball_frames, blocks, block_width, block_height):
@@ -332,15 +354,14 @@ class Boss(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
-        
-        # Physics 
-        self.vel_y = 0
-        self.gravity = 0.8
-        self.jump_speed = -15
-        self.on_ground = False
-        self.speed = 2  
-        
-        # Combat
+
+        # Physics: Lock to stationary (no movement or jumping)
+        self.vel_y = 0  # Start with 0, no gravity/jumping
+        self.gravity = 0.8  # Unused now, but keep for consistency
+        self.jump_speed = -18  # Unused now
+        self.on_ground = False  # Will be set True after find_ground
+
+        # Combat (unchanged)
         self.health = 500
         self.max_health = 500
         self.attack_damage = 15
@@ -349,58 +370,66 @@ class Boss(pygame.sprite.Sprite):
         self.is_dead = False
         self.fireball_cooldown = 0
         self.fireball_cd_time = 3000  # 3s between fireballs
-        self.current_state = 'idle'
-        
-        # World
+
+        # AI States: Simplified (no chase/jumping)
+        self.state = 'idle'  
+        self.last_state_change = 0
+        self.state_change_cooldown = 500  # For attack triggers
+
+        # World (unchanged, but bounds unused now)
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
-        
-        # Masks for pixel-perfect collision
+
+        # Masks (unchanged)
         self.masks = {}
-        for state, frames in animations.items():
-            if state != 'fireball':  # No mask for projectiles
-                self.masks[state] = [pygame.mask.from_surface(f) for f in frames]
+        for anim_name, frames in animations.items():
+            if anim_name != 'fireball':
+                self.masks[anim_name] = [pygame.mask.from_surface(f) for f in frames]
         self.current_mask = self.masks['idle'][0]
-        
+
         self.find_ground()
-    
+        # CHANGE: Lock position after finding ground—no more physics
+        self.vel_y = 0
+        self.on_ground = True  # Stationary on ground forever
+
     def find_ground(self):
+        # Unchanged: Find ground and set position
         ground_y = self.rect.y + 500
         for block in self.blocks:
-            if (block["type"] == "magma_block" and 
-                abs(block["rect"].centerx - self.rect.centerx) < self.block_width * 5):  # Wider search for boss
+            if (block["type"] in ["grass", "magma_block"] and
+                abs(block["rect"].centerx - self.rect.centerx) < self.block_width * 10):
                 if block["rect"].top > self.rect.y:
                     ground_y = min(ground_y, block["rect"].top)
-        self.rect.bottom = ground_y - 100  
-        self.on_ground = False
-    
+        self.rect.bottom = ground_y - 1  # On ground
+        # No vel_y or on_ground changes here—handled in __init__
+
     def check_collision(self, dx, dy):
+        # Unchanged: Used for fireball blocks and melee (though dx/dy=0 for boss now)
         temp_rect = self.rect.copy()
         temp_rect.x += dx
         temp_rect.y += dy
         for block in self.blocks:
-            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire"]:
+            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
                 continue
             if temp_rect.colliderect(block["rect"]):
                 return True
         return False
-    
-    def take_damage(self, damage):
+
+    def take_damage(self, damage):  # Unchanged
         if not self.is_dead:
             self.health -= damage
-            print(f"Boss took {damage} damage. New health: {self.health}/{self.max_health}")  # Debug print
+            print(f"Boss took {damage} damage. New health: {self.health}/{self.max_health}")
             if self.health <= 0:
                 self.health = 0
                 self.is_dead = True
                 self.animator.set_animation('dead')
-                print("Boss defeated!")  
-    
-    def attack_player(self, player):
+                print("Boss defeated!")
+
+    def attack_player(self, player):  # Unchanged
         current_time = pygame.time.get_ticks()
         if current_time - self.last_attack >= self.attack_cooldown and not self.is_dead:
-            # Deal 15% damage to player (15% of 100 = 15 damage)
             player.get_damage(self.attack_damage)
             if hasattr(player, 'hit_flash'):
                 player.hit_flash = pygame.time.get_ticks()
@@ -408,114 +437,103 @@ class Boss(pygame.sprite.Sprite):
             print(f"Boss attacked player! Player health: {player.current_health}/{player.maximum_health}")
             return True
         return False
-    
+
+    def shoot_fireball(self, player, fireball_group):
+        # Unchanged
+        current_time = pygame.time.get_ticks()
+        if current_time - self.fireball_cooldown >= self.fireball_cd_time and not self.is_dead:
+            # Play attack1 for ranged wind-up
+            if self.state != 'ranged':
+                self.state = 'ranged'
+                self.animator.set_animation('attack1')
+            
+            fireball_frames = self.animations['fireball']
+            fireball = Fireball(
+                self.rect.centerx, self.rect.centery,
+                player.rect.centerx, fireball_frames,
+                self.blocks, self.block_width, self.block_height
+            )
+            fireball_group.add(fireball)
+            self.fireball_cooldown = current_time
+            print("Boss shot fireball at 800px range!")
+            return True
+        return False
+
     def update(self, player, fireball_group):
-        if self.is_dead or not player:
+        if self.is_dead:
+            # Unchanged: Play dead animation
             self.animator.update()
             self.image = self.animator.get_current_image()
+            state = self.animator.current_animation
+            if state in self.masks:
+                self.current_mask = self.masks[state][self.animator.current_frame]
             return
 
+        if not player:
+            return
+
+        # Update animation (unchanged)
         anim_finished = self.animator.update()
         self.image = self.animator.get_current_image()
         state = self.animator.current_animation
-        self.current_mask = self.masks[state][self.animator.current_frame % len(self.masks[state])]
-        
+        if state in self.masks:
+            self.current_mask = self.masks[state][self.animator.current_frame % len(self.masks[state])]
+
         dist_x = abs(player.rect.centerx - self.rect.centerx)
+        dist_y = abs(player.rect.centery - self.rect.centery)
         current_time = pygame.time.get_ticks()
-        
-        # State boss
-        if self.current_state == 'attack2' and anim_finished:
-            # Reset after attack2
-            self.current_state = 'chase' if dist_x <= 320 else 'idle'
-            self.animator.set_animation('run' if self.current_state == 'chase' else 'idle')
-        
-        elif dist_x >= 800:
-            # Attack1 + Fireball
-            if self.current_state != 'attack1':
-                self.current_state = 'attack1'
-                self.animator.set_animation('attack1')
-            if current_time - self.fireball_cooldown >= self.fireball_cd_time:
-                # Spawn fireball from boss center toward player
-                fx = self.rect.centerx
-                fy = self.rect.centery
-                fireball = Fireball(fx, fy, player.rect.centerx, self.animations['fireball'], 
-                                self.blocks, self.block_width, self.block_height)
-                fireball_group.add(fireball)
-                self.fireball_cooldown = current_time
-        
-        elif dist_x <= 320:
-            # Chase mode: Move + Jump AI
-            if self.current_state != 'chase':
-                self.current_state = 'chase'
-                self.animator.set_animation('run')
-            
-            direction = 1 if player.rect.centerx > self.rect.centerx else -1
-            self.animator.facing_right = direction > 0
-            move_x = direction * self.speed
-            
-            # Check for player collision BEFORE moving
-            close_range = 80  
-            player_collision = False
-            
-            # Distance-based collision check first
-            if (abs(player.rect.centerx - self.rect.centerx) <= close_range and 
-                abs(player.rect.centery - self.rect.centery) <= 100):
-                
-                # Pixel-perfect collision check
-                if hasattr(player, 'mask') and player.mask:
-                    offset_x = player.rect.x - self.rect.x
-                    offset_y = player.rect.y - self.rect.y
-                    if self.current_mask.overlap(player.mask, (offset_x, offset_y)):
-                        player_collision = True
-                else:
-                    # Fallback: Rectangle collision
-                    if self.rect.colliderect(player.rect):
-                        player_collision = True
-            
-            # If collision detected, stop movement and attack
-            if player_collision and self.current_state != 'attack2':
-                if current_time - self.last_attack >= self.attack_cooldown:
-                    self.current_state = 'attack2'
+
+        # CHANGE: Early melee collision check (triggers on overlap, no movement)
+        if player and self.rect.colliderect(player.rect):
+            offset_x = player.rect.x - self.rect.x
+            offset_y = player.rect.y - self.rect.y
+            if (hasattr(player, 'mask') and player.mask and 
+                self.current_mask.overlap(player.mask, (offset_x, offset_y))):
+                # Collision: Force melee state
+                if self.state != 'melee':
+                    self.state = 'melee'
                     self.animator.set_animation('attack2')
-                    self.attack_player(player)
-                move_x = 0  # STOP MOVEMENT
-            
-            # Only move if no collision and not attacking
-            if not player_collision and self.current_state != 'attack2':
-                # Jump AI: If blocked by terrain, jump (only on ground)
-                if self.check_collision(move_x, 0) and self.on_ground:
-                    self.vel_y = self.jump_speed
-                    self.on_ground = False
-                    self.animator.set_animation('jump')
-                else:
-                    # Apply horizontal movement
-                    self.rect.x += move_x
-        
-        else:
-            # Idle (mid-range)
-            if self.current_state not in ['idle', 'attack1']:
-                self.current_state = 'idle'
-                self.animator.set_animation('idle')
-        
-        # Vertical physics (gravity + collision)
-        self.vel_y += self.gravity
-        if not self.check_collision(0, self.vel_y):
-            self.rect.y += self.vel_y
-        else:
-            if self.vel_y > 0:  # Land
-                self.vel_y = 0
-                self.on_ground = True
-            else:  # Ceiling
-                self.vel_y = 0
-        
-        # Reset to run after jump lands
-        if self.on_ground and self.animator.current_animation == 'jump':
-            self.animator.set_animation('run')
-        
-        # World bounds
-        self.rect.left = max(0, self.rect.left)
-        self.rect.right = min(self.world_width, self.rect.right)
-        
+                    self.last_state_change = current_time
+                self.attack_player(player)  # Deal damage
+                print("Boss melee collision! Attack2 triggered.")
+            # Update anim/mask again for melee (in case it changed)
+            anim_finished = self.animator.update()
+            self.image = self.animator.get_current_image()
+            state = self.animator.current_animation
+            if state in self.masks:
+                self.current_mask = self.masks[state][self.animator.current_frame % len(self.masks[state])]
+            # Reset after melee finishes
+            if anim_finished and self.state == 'melee':
+                self.state = 'idle'
+                self.animator.reset_to_idle()
+            return  # Exit early—melee handled
+
+        # CHANGE: Simplified AI State Machine (no chase/jumping, only ranged or idle)
+        # Only change state if cooldown allows and not in attack
+        if (current_time - self.last_state_change >= self.state_change_cooldown and 
+            self.state not in ['melee', 'ranged']):
+            if dist_x > 800:  # Too far: Idle
+                self.state = 'idle'
+                self.animator.reset_to_idle()
+            elif 400 < dist_x <= 800:  # Ranged: Fireball + attack1
+                self.state = 'ranged'
+                self.animator.set_animation('attack1')
+                self.shoot_fireball(player, fireball_group)  # Triggers at ~800px
+                # Face player during ranged
+                self.animator.facing_right = player.rect.centerx > self.rect.centerx
+            else:  # Close but no overlap: Idle (no chase)
+                self.state = 'idle'
+                self.animator.reset_to_idle()
+            self.last_state_change = current_time
+
+        # CHANGE: Handle non-looping anim finishes (reset to idle after ranged)
+        if anim_finished and self.state == 'ranged':
+            self.state = 'idle'
+            self.animator.reset_to_idle()
+
+        # CHANGE: NO PHYSICS OR MOVEMENT (removed gravity, vel_y, rect.x/y updates, bounds)
+
+    # draw_health_bar and draw methods unchanged...
     def draw_health_bar(self, surf, camera_x):
         if self.is_dead:
             return
@@ -541,6 +559,8 @@ class Boss(pygame.sprite.Sprite):
         if not self.is_dead:
             self.draw_health_bar(surf, camera_x)
 
+
+
 # =====PLAYER================================================================================================================= #
 class Playeronworld(Player): #1
     def __init__(self, base_animation_list, action_animation_list, gender, blocks, block_width, block_height, world_width, parent):
@@ -549,7 +569,6 @@ class Playeronworld(Player): #1
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
-        self.health = 100
         self.parent = parent
         self.was_in_air = True       
         self.last_step_time = 0
@@ -573,15 +592,16 @@ class Playeronworld(Player): #1
     def health(self, value):
         """Compatibility property setter"""
         self.current_health = max(0, min(self.maximum_health, value))
+    
     #======CollisionCheck=============#
     def check_collision(self, dx, dy):
-        temp_rect = self.rect.copy()
-        temp_rect.x += dx
-        temp_rect.y += dy
+        temp_hitbox = self.hitbox.copy()
+        temp_hitbox.x += dx
+        temp_hitbox.y += dy
         for block in self.blocks:
             if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
                 continue
-            if temp_rect.colliderect(block["rect"]):
+            if temp_hitbox.colliderect(block["rect"]):
                 return True
         return False
     
@@ -624,6 +644,7 @@ class Playeronworld(Player): #1
     #=============ConstantSids========================#
     def update(self):
         current_time = pygame.time.get_ticks()
+        
         if self.is_performing_action:
             if current_time - self.action_start_time >= self.action_duration:
                 self.is_performing_action = False
@@ -673,20 +694,23 @@ class Playeronworld(Player): #1
                 self.rect.left = 0
             if self.rect.right > self.world_width:
                 self.rect.right = self.world_width
-    
+
+            self.hitbox.center = self.rect.center
+            self.hitbox = self.rect.inflate(-60, -10)
+
     # === sounds ===
-    # footsteps (timed, not spam)
         if self.vel_x != 0 and not self.in_air:
-            if current_time - self.last_step_time > 300:  # 300ms per step
+            if current_time - self.last_step_time > 300:  
                 pygame.mixer.Channel(1).play(self.parent.sounds["footstep"])
                 self.last_step_time = current_time
 
-        # jump (trigger only at jump start)
         if self.vel_y < 0 and not self.jump_played:
             self.parent.sounds["jump"].play()
             self.jump_played = True
+
         if not self.in_air:
             self.jump_played = False
+
     #=============Scenecam===============#
     def draw(self, surf, camera_x):
         # NEW: Flash red if recently hit
@@ -707,7 +731,7 @@ class Playeronworld(Player): #1
         redback.fill((255, 0, 0, alpha))
         surf.blit(redback, (x, y))
 
-        green_width = int(bar_width * (self.current_health/self.maximum_health))
+        green_width = int(bar_width * (self.health/100))
         if green_width > 0:
             greenback = pygame.Surface((green_width, bar_height), pygame.SRCALPHA)
             greenback.fill((0, 255, 0, alpha))
@@ -730,11 +754,17 @@ class generateworld:
         size = pygame.display.Info()
         self.screen = pygame.display.set_mode((size.current_w, size.current_h), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
+        #===========INIT=============#
         self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
+        # === UI assets ===
+        self.hotbar_image= pygame.image.load("Map\\UI+LOGO\\hotbar_9slots.png").convert_alpha()
+
+        self.inventory_bg = pygame.image.load("Map\\UI+LOGO\\inventory.png").convert_alpha()
+
 
         self.show_fullmap = False
-        self.fullmap_scale = 0.1  # adjust for performance vs detail
+        self.fullmap_scale = 0.1  #(will try 0.2, might be too big)
         self.fullmap_surf = None
 
         self.blocklibrary = {
@@ -748,7 +778,9 @@ class generateworld:
                 pygame.image.load("Map\\BLOCK\\dirtstone_block_gradient_1_resize.png").convert(),(32,32)),
             'stone': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\stone_block_resize.png").convert(), (32, 32)),
-            'bush':pygame.transform.scale(
+            'stone_bricks': pygame.transform.scale(
+                pygame.image.load("Map\\BLOCK\\stone_brick_block.png").convert_alpha(), (32,32)),
+            'bush': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\grass_resize.png").convert_alpha(), (32, 32)),
             'biggerbush':pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\shrub.png").convert_alpha(), (32,32)),
@@ -756,6 +788,8 @@ class generateworld:
                 pygame.image.load("Map\\BLOCK\\tree_wood_stump.png").convert_alpha(), (32, 32)),
             'tree_log': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_wood.png").convert_alpha(), (32, 32)),
+            'tree_top': pygame.transform.scale(
+                pygame.image.load("Map\\BLOCK\\tree_middlemiddle.png").convert_alpha(),(32,32)),
             'tree_topleft': pygame.transform.scale(
                 pygame.image.load("Map\\BLOCK\\tree_top_left.png").convert_alpha(), (32,32)),
             'tree_topright': pygame.transform.scale(
@@ -790,34 +824,36 @@ class generateworld:
                 pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_pickaxe_hotbar.png').convert_alpha(),(32,32)),
             'sword' : pygame.transform.scale(
                 pygame.image.load('Map\\BLOCK\\HOTBAR ITEMS\\aetherium_sword_hotbar.png').convert_alpha(),(32,32)),
-                
-            
-
         }
-       #==========checkthesize=========#
+        self.blocks = [] 
+          #==========size=========#
         self.block_width = self.blocklibrary['dirt'].get_width()
         self.block_height = self.blocklibrary['dirt'].get_height()
-        
-        self.blocks = []  
+        #levelcountar
         self.seed = None
         self.set_seed()
         self.number_levels = 5
         self.gen_world(number_levels=self.number_levels)
+
         self.init_player()
         self.current_scene = 0  
         self.highlight = False
+        
+        self.pause_callback = pause_callback
 
+        #Health bar tracking for player (initialize after player creation)
         self.health_display_time = 3000  # 3 seconds in ms
         self.last_health_change = 0      # Timer start (0 means no recent damage)
-        self.prev_player_health = self.player.current_health if self.player else 100
+        self.prev_player_health = self.player.current_health if self.player else 100  # Track previous health
+
+        self.current_scene = 0  
+        self.previous_scene = 0
+        self.highlight = False
         
         self.pause_callback = pause_callback
 
         # =====Inventory/Hotbar Setup========= #
-        # Each slot: (block_type, count)
         self.hotbar_slots = [
-            ("dirt", 10),
-            ("stone", 5),
             (None, 0),
             (None, 0),
             (None, 0),
@@ -825,14 +861,16 @@ class generateworld:
             (None, 0),
             (None, 0),
             (None, 0),
-            # ...
+            (None, 0),
+            (None, 0),
         ]
-
+        #Numberofblockstxt#
         self.hotbar_slot_size = 40
         self.hotbar_padding = 6
         self.font = pygame.font.SysFont(None, 20)
+        
 
-        # ===== Inventory/Hotbar Dragging ===== #
+        #==========================Inventory n Hotbar Dragging=======================#
         self.dragging_item = None
         self.dragging_item_image = None
         self.dragging_index = None
@@ -845,8 +883,7 @@ class generateworld:
         self.inventory_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         
         self.inventory_slots = [None] * (self.inventory_cols * self.inventory_rows)
-        self.inventory_slots[0] = ("sword", 1)
-        self.inventory_slots[1] = ("pickaxe", 1)
+
         self.dragging_item = None
         self.dragging_slot = None
   
@@ -856,13 +893,15 @@ class generateworld:
         self.init_enemy_system()
         self.boss_group = pygame.sprite.Group()  
         self.fireball_group = pygame.sprite.Group()  
-        self.init_boss_system()
+        
+        
 
         # ===== Crafting System ===== #
         self.show_crafting = False
         self.recipes = {
             "wood_planks": {"tree_log": 1},
-            "pickaxe": {"aetherium":3 , "wood_planks":1 }
+            "pickaxe": {"aetherium":3 , "wood_planks":1 },
+            "stone_bricks": {"stone":1},
         }
         self.crafting_font = pygame.font.SysFont(None, 32)
         self.crafting_scroll = 0
@@ -876,6 +915,7 @@ class generateworld:
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")   
         pygame.mixer.music.play(-1)
         self.volume =volume
+        self.current_music = "overworld"
                 # ===== Sound Effects ===== #
         self.sounds = {
             "footstep": pygame.mixer.Sound("Map\\Sounds\\footstep_grass.mp3"),
@@ -909,6 +949,30 @@ class generateworld:
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
+
+    def update_music(self):
+        """Update background music based on dimension and current scene."""
+        current_time = pygame.time.get_ticks()  # Not strictly needed, but for future expansions
+        
+        # Boss music condition: Hell dimension AND last scene (boss area)
+        if self.dimension == "hell" and self.current_scene == self.number_levels - 1:
+            if self.current_music != "boss":
+                pygame.mixer.music.stop()  # Stop current music
+                pygame.mixer.music.load("Map\\MusicMan\\EpicBossFight.mp3")
+                pygame.mixer.music.set_volume(self.volume)
+                pygame.mixer.music.play(-1)  # Loop indefinitely
+                self.current_music = "boss"
+                print("Switched to Epic Boss Fight music!")  # Optional: For debugging
+        else:
+            # Default to overworld music (for overworld or non-boss hell scenes)
+            if self.current_music != "overworld":
+                pygame.mixer.music.stop()  # Stop current music
+                pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
+                pygame.mixer.music.set_volume(self.volume)
+                pygame.mixer.music.play(-1)
+                self.current_music = "overworld"
+                print("Switched back to overworld music!")  # Optional: For debugging
+
 
     # ==== ENEMY INITIALIZATION ==== #
     def init_enemy_system(self):
@@ -944,20 +1008,20 @@ class generateworld:
                 # Random x position within the scene
                 x = random.randint(scene * screen_width + 100, (scene + 1) * screen_width - 100)
                 
-                # Find magma_block blocks in this scene to determine spawn height
-                scene_magma_block_blocks = []
+                # Find grass blocks in this scene to determine spawn height
+                scene_grass_blocks = []
                 for block in self.blocks:
-                    if (block["type"] == "magma_block" and 
+                    if (block["type"] in ["grass", "magma_block"] and
                         scene * screen_width <= block["rect"].centerx < (scene + 1) * screen_width):
-                        scene_magma_block_blocks.append(block)
+                        scene_grass_blocks.append(block)
                 
-                if scene_magma_block_blocks:
-                    # Find the magma_block block closest to our spawn x position
-                    closest_magma_block = min(scene_magma_block_blocks, 
+                if scene_grass_blocks:
+                    # Find the grass block closest to our spawn x position
+                    closest_grass = min(scene_grass_blocks, 
                                       key=lambda b: abs(b["rect"].centerx - x))
-                    y = closest_magma_block["rect"].top - 200  # Start 200 pixels above magma_block
+                    y = closest_grass["rect"].top - 500  # Start 200 pixels above grass
                 else:
-                    # Fallback if no magma_block blocks found
+                    # Fallback if no grass blocks found
                     y = 100
                 
                 # Create enemy
@@ -965,48 +1029,53 @@ class generateworld:
                              self.block_width, self.block_height)
                 self.enemy_group.add(enemy)
 
-#===== BOSS INITIALIZE =====#
-    def init_boss_system(self):
-        "Initialize boss animations and spawn the boss in the last scene."
-        # Load boss animations once (scale=2 for visibility, adjust if needed)
+    #===== BOSS INITIALIZE =====#
+    def init_boss_system(self, hell_mode=False):
+        """Initialize boss animations and spawn the boss in the last scene (hell only)."""
+        # Load boss animations once (scale=2 for visibility)
         self.boss_animations = load_boss_animations(scale=2)
-    
+
         # Clear any existing boss/fireballs
         self.boss_group.empty()
         self.fireball_group.empty()
-    
-        # Spawn boss only if world is generated
-        if len(self.blocks) > 0:
-            self.spawn_boss()
 
-    def spawn_boss(self):
-        """Spawn the boss in the last scene, at the far right."""
+        # Spawn boss only if in hell and world is generated
+        if hell_mode and len(self.blocks) > 0:
+            self.spawn_boss(hell_mode=True)
+
+
+    def spawn_boss(self, hell_mode=False):
+        """Spawn the boss in the last scene, at the far right (hell only)."""
+        if not hell_mode:
+            return  # Only spawn in hell
+
         screen_width = self.screen.get_width()
         last_scene_index = self.number_levels - 1
         scene_start_x = last_scene_index * screen_width
-    
+
         # Boss spawn x: Far right of last scene (100px margin from edge)
-        boss_width = 128 * 2  # Approximate scaled width from animations (128px * scale=2)
-        spawn_x = scene_start_x + screen_width - boss_width - 100  # Most right
-    
+        boss_width = 128 * 2  # Scaled width from animations (128px * scale=2)
+        spawn_x = scene_start_x + screen_width - boss_width - 100  # Most right side
+
         # Initial y: High up, will fall to ground via find_ground()
-        spawn_y = 200  # Arbitrary high position
-        
+        spawn_y = 200  # Arbitrary high position to trigger gravity drop
+
         # Create boss with world data
         world_width = screen_width * self.number_levels
         boss = Boss(
-            spawn_x, spawn_y, 
+            spawn_x, spawn_y,
             self.boss_animations,  # Loaded animations
-            self.blocks, self.block_width, self.block_height, 
+            self.blocks, self.block_width, self.block_height,
             world_width  # For bounds checking
         )
         self.boss_group.add(boss)
-        
-        print(f"Boss spawned at ({spawn_x}, {spawn_y}) in scene {last_scene_index}")
+
+        print(f"Boss spawned at ({spawn_x}, {spawn_y}) in last hell scene {last_scene_index}")
 
 
     def init_player(self):
         gender = gender_selection_screen()
+        # Load base sprites
         if gender == 'male':
             base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_spriteV8_flipped.png')).convert_alpha()
             attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_sprite_attack.png')).convert_alpha()
@@ -1019,15 +1088,13 @@ class generateworld:
             mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()  # Using attack for mine if mine doesn't exist
             action_sprite_width, action_sprite_height = 232, 182
             action_scale_factor = 0.3
-
         # Load animations
         base_animation_list = load_base_animations(base_sprite_image)
         action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image, 
                                                      action_sprite_width, action_sprite_height, action_scale_factor)
         
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
-        self.player = Playeronworld(base_animation_list, action_animation_list, gender, self.blocks, self.block_width, self.block_height, world_width, self)
-       
+        self.player = Playeronworld(base_animation_list, action_animation_list, gender, self.blocks, self.block_width, self.block_height, world_width,self)
         spawn_x = 300
         spawn_y = 300
         for block in self.blocks:
@@ -1045,12 +1112,12 @@ class generateworld:
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
-        cols = screen_width // self.block_width
+        colums = screen_width // self.block_width
         rows = screen_height // self.block_height
 
         for level in range(number_levels):
-            for x in range(cols):
-                noise_value = noise.noise2((x + level * cols) * 0.1, 0)
+            for x in range(colums):
+                noise_value = noise.noise2((x + level * colums) * 0.1, 0)
                 base = rows // 4
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
@@ -1081,7 +1148,7 @@ class generateworld:
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
                         texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
 
-                    rect = texture.get_rect(topleft=((x + level * cols) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
                     # randomly add trees
@@ -1176,7 +1243,7 @@ class generateworld:
         self.blocks.clear()
         noise = OpenSimplex(seed=self.seed)
         screen_width, screen_height = self.screen.get_size()
-        cols = screen_width // self.block_width
+        colums = screen_width // self.block_width
         rows = screen_height // self.block_height
 
         # Hell background
@@ -1184,8 +1251,8 @@ class generateworld:
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
 
         for level in range(number_levels):
-            for x in range(cols):
-                noise_value = noise.noise2((x + level * cols) * 0.1, 0)
+            for x in range(colums):
+                noise_value = noise.noise2((x + level * colums) * 0.1, 0)
                 base = rows // 4
                 height = int((noise_value + 1) * 5 + base)
                 height = max(1, min(rows, height))
@@ -1209,7 +1276,7 @@ class generateworld:
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
                         texture.fill((int(255*factor), int(100*factor), int(50*factor)), special_flags=pygame.BLEND_MULT)
 
-                    rect = texture.get_rect(topleft=((x + level * cols) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
                     # Random fire blocks on top of magma
@@ -1284,6 +1351,21 @@ class generateworld:
         if self.player:
             self.init_player()
 
+    def add_to_inventory(self, bloktype, amount=1):
+    # Try stacking in inventory
+        for i, slot in enumerate(self.inventory_slots):
+            if slot and slot[0] == bloktype:
+                self.inventory_slots[i] = (bloktype, slot[1] + amount)
+                self.update_hotbar()
+                return
+
+        # If not found, put in first empty slot
+        for i, slot in enumerate(self.inventory_slots):
+            if slot is None:
+                self.inventory_slots[i] = (bloktype, amount)
+                self.update_hotbar()
+                return
+
     def add_to_hotbar(self, block_type):
         for i, (item, count) in enumerate(self.hotbar_slots):
             if item == block_type:
@@ -1318,6 +1400,8 @@ class generateworld:
         inv_height = self.inventory_rows * self.inventory_slot_size + (self.inventory_rows - 1) * self.inventory_padding
         inv_x = (self.screen.get_width() - inv_width) // 2
         inv_y = (self.screen.get_height() - inv_height) // 2
+        invbackground = pygame.transform.scale(self.inventory_bg,(inv_width,inv_height))
+        self.screen.blit(invbackground,(inv_x,inv_y))
 
         for row in range(self.inventory_rows):
             for col in range(self.inventory_cols):
@@ -1342,16 +1426,62 @@ class generateworld:
                         count_rect = count_surf.get_rect(bottomright=(slot_rect.right-4, slot_rect.bottom-4))
                         self.screen.blit(count_surf, count_rect)
 
-                # dragging visual
+          
                 if self.dragging_slot == index and self.dragging_item:
                     item_name, count = self.dragging_item
                     icon = pygame.transform.scale(self.blocklibrary[item_name], (self.inventory_slot_size-8, self.inventory_slot_size-8))
                     mx, my = pygame.mouse.get_pos()
                     icon_rect = icon.get_rect(center=(mx, my))
                     self.screen.blit(icon, icon_rect)
+    
+
+
+
+    def draw_hotbar(self, screen, selected_index):
+        hotbar_slots = self.hotbar_slots
+        
+    
+        original_width = self.hotbar_image.get_width()
+        original_height = self.hotbar_image.get_height()
+        scale_factor = 0.2  
+        hotbar_width = int(original_width * scale_factor)
+        hotbar_height = int(original_height * scale_factor)
+        hotbar_x = (screen.get_width() - hotbar_width) // 2
+        hotbar_y = screen.get_height() - hotbar_height - 10
+        scaled_hotbar = pygame.transform.scale(self.hotbar_image, (hotbar_width, hotbar_height))
+        screen.blit(scaled_hotbar, (hotbar_x, hotbar_y))
+        
+        total_slots = 9
+        slot_width = hotbar_width // total_slots
+        slot_height = hotbar_height
+        
+      
+        for i, (item, count) in enumerate(hotbar_slots[:9]):
+
+            slot_x = hotbar_x + (i * slot_width)
+            slot_y = hotbar_y
+            
+            slot_rect = pygame.Rect(slot_x, slot_y, slot_width, slot_height)
+            
+            if i == selected_index:
+                highlight_rect = pygame.Rect(slot_x + 2, slot_y + 2, slot_width - 4, slot_height - 4)
+                pygame.draw.rect(screen, (255, 215, 0, 100), highlight_rect, 3)
+            
+            if item and item in self.blocklibrary:
+                icon_size = min(slot_width - 12, slot_height - 12)
+                icon = pygame.transform.scale(self.blocklibrary[item], (icon_size, icon_size))
+                icon_rect = icon.get_rect(center=slot_rect.center)
+                screen.blit(icon, icon_rect)
+                
+                if count > 1:
+                    count_surf = self.font.render(str(count), True, (255, 255, 255))
+                    count_rect = count_surf.get_rect(bottomright=(slot_rect.right - 4, slot_rect.bottom - 4))
+                    outline_surf = self.font.render(str(count), True, (0, 0, 0))
+                    for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                        screen.blit(outline_surf, (count_rect.x + dx, count_rect.y + dy))
+                    screen.blit(count_surf, count_rect)
 
     # ===== Inventory Drag & Drop =====
-    # ===== handle_inventory_click =====
     def handle_inventory_click(self):
         mx, my = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
@@ -1361,7 +1491,7 @@ class generateworld:
         inv_x = (self.screen.get_width() - inv_width) // 2
         inv_y = (self.screen.get_height() - inv_height) // 2
 
-        # start dragging
+        # ===== Start dragging =====
         if mouse_pressed[0] and not self.dragging_item:
             for row in range(self.inventory_rows):
                 for col in range(self.inventory_cols):
@@ -1373,12 +1503,14 @@ class generateworld:
                         self.inventory_slot_size
                     )
                     if slot_rect.collidepoint(mx, my) and self.inventory_slots[index]:
-                        self.dragging_item = self.inventory_slots[index]
+                        self.dragging_item = self.inventory_slots[index] 
                         self.dragging_slot = index
-                        self.inventory_slots[index] = None
+                        self.dragging_row = row
+                        self.dragging_col = col
+                        self.inventory_slots[index] = None  
                         return
 
-        # drop item
+        # ===== Drop item =====
         if not mouse_pressed[0] and self.dragging_item is not None:
             for row in range(self.inventory_rows):
                 for col in range(self.inventory_cols):
@@ -1390,66 +1522,83 @@ class generateworld:
                         self.inventory_slot_size
                     )
                     if slot_rect.collidepoint(mx, my):
-  
-                        self.inventory_slots[index], self.dragging_item = self.dragging_item, self.inventory_slots[index]
+                        dest_item = self.inventory_slots[index]
+                        src_item = self.dragging_item
 
-                        # Update hotbar if this is the top row
+                        
+                        if dest_item is None:
+                            self.inventory_slots[index] = src_item
+                            self.dragging_item = None
+
+                       
+                        elif dest_item[0] == src_item[0]:
+                            MAX_STACK = 64
+                            new_count = dest_item[1] + src_item[1]
+                            if new_count <= MAX_STACK:
+                                self.inventory_slots[index] = (dest_item[0], new_count)
+                                self.dragging_item = None
+                            else:
+                                self.inventory_slots[index] = (dest_item[0], MAX_STACK)
+                                self.dragging_item = (dest_item[0], new_count - MAX_STACK)
+
+                       
+                        else:
+                            self.inventory_slots[index] = src_item
+                            self.dragging_item = dest_item
+
                         if row == 0:
                             slot = self.inventory_slots[index]
-                            if slot:
-                                self.hotbar_slots[col] = slot  # slot is (item_type, count)
-                            else:
-                                self.hotbar_slots[col] = (None, 0)
+                            self.hotbar_slots[col] = slot if slot else (None, 0)
 
-                        # Clear dragging
-                        self.dragging_slot = None
-                        self.dragging_item = None
+                        if self.dragging_row == 0:
+                            sidx = self.dragging_slot
+                            scol = self.dragging_col
+                            slot = self.inventory_slots[sidx]
+                            self.hotbar_slots[scol] = slot if slot else (None, 0)
 
+                    
+                        if self.dragging_item is None:
+                            self.dragging_slot = None
+                            self.dragging_row = None
+                            self.dragging_col = None
                         return
-            # drop outside = return to original slot
+
+            # ===== Dropped outside → return to original slot =====
             self.inventory_slots[self.dragging_slot] = self.dragging_item
+            if self.dragging_row == 0:
+                scol = self.dragging_col
+                slot = self.inventory_slots[self.dragging_slot]
+                self.hotbar_slots[scol] = slot if slot else (None, 0)
+
             self.dragging_item = None
             self.dragging_slot = None
+            self.dragging_row = None
+            self.dragging_col = None
 
-
-    # Example: get count of a block in inventory_slots
-    def get_inventory_count(self, block_type):
-        for slot in self.inventory_slots:
-            if slot and slot[0] == block_type:
-                return slot[1]
-        return 0
 
 
     # ===== Hotbar Sync =====
     def update_hotbar(self):
-        # Map first 9 items of inventory dict to hotbar
-        inventory_items = list(self.inventory_slots.items())
-        for i in range(9):
-            if i < len(inventory_items):
-                item_name, count = inventory_items[i]
-                self.hotbar_slots[i] = item_name
-                self.hotbar_counts[i] = count
+        for i in range(9):  # first row of inventory
+            slot = self.inventory_slots[i]
+            if slot:
+                self.hotbar_slots[i] = slot
             else:
-                self.hotbar_slots[i] = None
-                self.hotbar_counts[i] = 0
+                self.hotbar_slots[i] = (None, 0)
+
+                
 
     def run(self):
         running = True
         radius = 7 * self.block_width 
         health_display_time = 3000  
         last_health_change = 0  
-        self.prev_player_health = self.player.current_health if self.player else 100
-        self.current_scene = 0  
-        self.previous_scene = 0
-        self.highlight = False
         screen_width = self.screen.get_width()
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_pressed = pygame.mouse.get_pressed()
-        
 
         while running:
             current_time = pygame.time.get_ticks()
             camera_x = -(self.current_scene * screen_width)
+            self.update_music()
             if self.show_inventory:
                 self.handle_inventory_click()
                 
@@ -1499,6 +1648,18 @@ class generateworld:
                                     self.dimension = "hell"
                                     self.current_scene = 0
                                     self.gen_hell(number_levels=self.number_levels)
+                                    self.dimension = "hell"
+                                    self.current_scene = 0
+                                    self.gen_hell(number_levels=self.number_levels)
+                                    self.enemy_group.empty()
+                                    self.spawn_enemies()
+                                    # Move player to hell spawn
+                                    self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
+                                    self.player.vel_x = 0
+                                    self.player.vel_y = 0
+                                    # NEW: Initialize boss system for hell only
+                                    self.init_boss_system(hell_mode=True)
+                                    self.current_music = "overworld"  # Reset to trigger switch in update_music()
                                     # move player to hell spawn coordinates
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
@@ -1508,6 +1669,23 @@ class generateworld:
                                     self.dimension = "overworld"
                                     self.current_scene = 0
                                     self.gen_world(number_levels=self.number_levels)
+                                    self.dimension = "overworld"
+                                    self.current_scene = 0
+                                    self.gen_world(number_levels=self.number_levels)
+                                    # Move player to overworld spawn
+                                    self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
+                                    self.player.vel_x = 0
+                                    self.player.vel_y = 0
+                                    self.enemy_group.empty()
+                                    self.spawn_enemies()
+                                    # NEW: Clear boss when leaving hell
+                                    self.boss_group.empty()
+                                    self.fireball_group.empty()
+                                    self.current_music = "overworld"  # Ensure overworld music plays
+                                    # In the update section, after updating fireballs:
+                                    for fireball in self.fireball_group.copy():
+                                        if not fireball.alive():  # Fireballs self-kill on collision
+                                            self.fireball_group.remove(fireball)
                                     # move player to overworld spawn
                                     self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
                                     self.player.vel_x = 0
@@ -1519,43 +1697,66 @@ class generateworld:
                     mx, my = pygame.mouse.get_pos()
                     start_y = 40
                     indexs = self.crafting_scroll
+                    crafted_amount = 1
+
                     for i in range(self.crafting_visible):
                         if indexs >= len(self.recipes):
                             break
-                        item = list(self.recipes.keys())[indexs]
-                        reqs = self.recipes[item]
-                        rect = pygame.Rect(20, start_y + i*30, 160, 30)
+
+                        crafted_item = list(self.recipes.keys())[indexs]
+                        reqs = self.recipes[crafted_item]
+
+                        rect = pygame.Rect(20, start_y + i * 30, 160, 30)
+
                         if rect.collidepoint(mx, my):
-                            if all(self.inventory_slots.get(mat, 0) >= amount for mat, amount in reqs.items()):
-                                
+        
+                            if all(inventory_counts.get(mat, 0) >= amount for mat, amount in reqs.items()):
+                                if crafted_item == "wood_planks":
+                                    crafted_amount = 4 
+                                elif crafted_item == "stone_bricks":
+                                    crafted_amount = 4
+
+                                # consume materials from inventory
                                 for mat, amount in reqs.items():
-                                    self.inventory_slots[mat] -= amount
+                                    remaining = amount
+                                    for idx, slot in enumerate(self.inventory_slots):
+                                        if slot and slot[0] == mat:
+                                            item_name, count = slot
+                                            if count > remaining:
+                                                self.inventory_slots[idx] = (item_name, count - remaining)
+                                                remaining = 0
+                                                break
+                                            else:
+                                                remaining -= count
+                                                self.inventory_slots[idx] = None
 
-                                    
-                                    consumed = self.consume_from_hotbar(mat, amount)
-
-            
-                                if item == "wood_planks":
-                                    
-                                    self.add_to_hotbar("wood_planks", 4)
-                                    self.inventory_slots["wood_planks"] += 4
-                                    self.sounds["craft"].play()
-
+                                # add crafted items to inventory
+                                self.add_to_inventory(crafted_item, crafted_amount)
+                                self.update_hotbar()
+                                self.sounds["craft"].play()
 
                         indexs += 1
-                
+
+
+
+                                # add crafted item using your existing system
+                        
+
+                                
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
                     mouse_position = pygame.mouse.get_pos()
                     world_mouse = (mouse_position[0] - camera_x, mouse_position[1])
                     if self.player:
                         player_center = self.player.rect.center
                         distance = ((world_mouse[0] - player_center[0])**2 + (world_mouse[1] - player_center[1]) **2) **0.5
+
                         if distance <= radius:  
                             if event.type == pygame.MOUSEBUTTONDOWN and event.button ==1 :  
                                 for block in self.blocks:
                                     if block["rect"].collidepoint(world_mouse):
                                         removed_block = block
                                         self.blocks.remove(block)
+
                                         bloktype = removed_block.get("type")
                                         added = False
 # Try to find existing slot
@@ -1570,13 +1771,8 @@ class generateworld:
                                                 if slot is None:
                                                     self.inventory_slots[i] = (bloktype, 1)
                                                     break
-                                        # Sync hotbar
-                                        for i in range(9):
-                                            slot = self.inventory_slots[i]
-                                            if slot:
-                                                self.hotbar_slots[i] = slot
-                                            else:
-                                                self.hotbar_slots[i] = (None,0)
+                                        self.update_hotbar()           
+                                    
                                             
 
                                         self.sounds["block_break"].play()
@@ -1621,7 +1817,16 @@ class generateworld:
                                 })
                                 self.sounds["block_place"].play()
 
-                               
+                                for i, slot in enumerate(self.inventory_slots) :
+                                    if slot and slot[0] == selected_type:
+                                        new_count = slot[1] - 1
+                                        if new_count > 0:
+                                            self.inventory_slots[i] = (selected_type,new_count)
+                                        else:
+                                            self.inventory_slots[i] = None
+                                        break
+                                self.update_hotbar()
+                                
                                 new_count = selected_count - 1
                                 if new_count > 0:
                                     self.hotbar_slots[self.selected_index] = (selected_type, new_count)
@@ -1630,17 +1835,6 @@ class generateworld:
 
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button ==4:
                             self.selected_index = (self.selected_index -1)
-
-                        current_health = self.player.current_health
-                        if current_health < self.prev_player_health:
-                            self.last_health_change = current_time
-                            print(f"Player took damage! Health: {current_health}/{self.player.maximum_health}")
-                        elif current_health > self.prev_player_health:
-                            self.last_health_change = current_time
-                            print(f"Player healed! Health: {current_health}/{self.player.maximum_health}")
-
-                        self.prev_player_health = current_health
-
             keys = pygame.key.get_pressed()
             if self.player and not self.show_inventory or self.show_crafting:
                 left = keys[pygame.K_a] 
@@ -1735,47 +1929,7 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-            #drawbar#==============
-            hotbar_slots = self.hotbar_slots
-            total_slots = len(hotbar_slots)
-            slot_w = self.hotbar_slot_size
-            slot_h = self.hotbar_slot_size
-            hotbar_w = total_slots * slot_w + (total_slots - 1) * self.hotbar_padding
-            hotbar_x = (screen_width - hotbar_w) // 2
-            hotbar_y = self.screen.get_height() - slot_h - 20
 
-            for i, bloktype in enumerate(hotbar_slots):
-                sx = hotbar_x + i * (slot_w + self.hotbar_padding)
-                sy = hotbar_y
-                rect = pygame.Rect(sx, sy, slot_w, slot_h)
-                pygame.draw.rect(self.screen, (50,50,50), rect)  
-                
-                if i == self.selected_index:
-                    pygame.draw.rect(self.screen, (255,215,0), rect, 3)  
-                else:
-                    pygame.draw.rect(self.screen, (0,0,0), rect, 2)
-                
-                hotbartexture = None
-                if bloktype and bloktype in self.blocklibrary:
-                    hotbartexture = self.blocklibrary.get(bloktype)
-
-                if hotbartexture:
-                    icon = pygame.transform.scale(hotbartexture, (slot_w - 8, slot_h - 8))
-                    icon_rect = icon.get_rect(center=rect.center)
-                    self.screen.blit(icon, icon_rect)
-                
-                count = 0
-                if bloktype:
-                    slot_type, slot_count = self.hotbar_slots[i]
-                    if slot_type == bloktype and slot_count > 0:
-                        count = slot_count
-
-                    else:
-                        count = self.get_inventory_count(bloktype)
-                count_surf = self.font.render(str(count), True, (255,255,255))
-                count_rect = count_surf.get_rect(bottomright=(rect.right - 4, rect.bottom - 4))
-                self.screen.blit(count_surf, count_rect)
-            
             # ==== DRAW ENEMIES ==== #
             # Only draw enemies in current scene or adjacent scenes for performance
             current_scene_start = self.current_scene * screen_width
@@ -1799,8 +1953,12 @@ class generateworld:
                     if (fireball.rect.right > current_scene_start - 200 and 
                         fireball.rect.left < current_scene_end + 200):
                         fireball.draw(self.screen, camera_x)
-            
-                #===========Healthdissapearlogic============#
+
+            #==================Drawbar==========================#
+            # Replace all the hotbar drawing code with just this line:
+            self.draw_hotbar(self.screen, self.selected_index)
+
+                #===========Heathdissapearlogic============#
             should_show_health = (
                 current_time - self.last_health_change <= self.health_display_time or  # Recent change
                 self.player.current_health < self.player.maximum_health  # Not at full health
@@ -1814,30 +1972,74 @@ class generateworld:
 
            
             if self.show_crafting:
-                panel_width = 200
+                panel_width = 300
                 panel_height = self.screen.get_height()
                 panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-                panel.fill((30,30,30,180))
-                self.screen.blit(panel, (0,0))
+                panel.fill((30, 30, 30, 180))
+                self.screen.blit(panel, (0, 0))
+
+                # === build inventory counts as a dict ===
+                inventory_counts = {}
+                for slot in self.inventory_slots:
+                    if slot:  # slot = (item, count)
+                        item, count = slot
+                        inventory_counts[item] = inventory_counts.get(item, 0) + count
 
                 start_y = 40
                 indexs = self.crafting_scroll
+                slot_height = 36
+
                 for i in range(self.crafting_visible):
                     if indexs >= len(self.recipes):
                         break
-                    item = list(self.recipes.keys())[indexs]
-                    reqs = self.recipes[item]
-                    craftable = all(self.inventory_slots.get(mat, 0) >= amount for mat, amount in reqs.items())
-                    color = (255,255,255) if craftable else (150,50,50)
-                    
-                    if item == "wood_planks":
-                        text = f"{item} x4: tree_log x1"
-                    else:
-                        text = f"{item}: " + ", ".join([f"{m}x{a}" for m,a in reqs.items()])
 
-                    txt = self.crafting_font.render(text, True, color)
-                    self.screen.blit(txt, (20, start_y + i*30))
+                    crafted_item = list(self.recipes.keys())[indexs]
+                    reqs = self.recipes[crafted_item]
+
+                    row_y = start_y + i * slot_height
+                    x_offset = 20
+
+                    # --- check if player has enough materials ---
+                    craftable = True
+                    for mat, amount in reqs.items():
+                        total = inventory_counts.get(mat, 0)
+                        if total < amount:
+                            craftable = False
+                            break
+                    color = (255, 255, 255) if craftable else (150, 50, 50)
+
+                    # --- draw crafted item icon ---
+                    if crafted_item in self.blocklibrary:
+                        icon = pygame.transform.scale(self.blocklibrary[crafted_item], (32, 32))
+                        self.screen.blit(icon, (x_offset, row_y))
+                    x_offset += 36
+
+                    # --- draw crafted amount ---
+                    crafted_amount = 4 if crafted_item in ["wood_planks", "stone_bricks"] else 1
+                    count_surf = self.crafting_font.render(f"x{crafted_amount}", True, color)
+                    self.screen.blit(count_surf, (x_offset, row_y + 8))
+                    x_offset += 36
+
+                    # --- draw arrow separator ---
+                    arrow_surf = self.crafting_font.render("←", True, color)
+                    self.screen.blit(arrow_surf, (x_offset, row_y + 8))
+                    x_offset += 16
+
+                    # --- draw material icons + counts ---
+                    for mat, amount in reqs.items():
+                        if mat in self.blocklibrary:
+                            mat_icon = pygame.transform.scale(self.blocklibrary[mat], (32, 32))
+                            self.screen.blit(mat_icon, (x_offset, row_y))
+                        x_offset += 36
+
+                        amount_surf = self.crafting_font.render(f"x{amount}", True, color)
+                        self.screen.blit(amount_surf, (x_offset, row_y + 8))
+                        x_offset += 36
+
                     indexs += 1
+
+
+
             if self.show_inventory:
                 self.draw_inventory()
             
@@ -1916,5 +2118,6 @@ class generateworld:
         if candidates:
             return min(b["rect"].top for b in candidates)
         return self.screen.get_height() - self.block_height
+    
 if __name__ == "__main__":
     generateworld().run()

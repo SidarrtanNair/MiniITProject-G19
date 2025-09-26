@@ -92,6 +92,7 @@ class Player:
         self.image = self.scale_current_image()
         self.rect = self.image.get_rect()
         self.rect.bottomleft = (50, SCREEN_HEIGHT - 50)
+        self.hitbox = self.rect.inflate(-60, -10)
 
         self.vel_x = 0
         self.vel_y = 0
@@ -228,6 +229,7 @@ class Player:
                 self.rect.left = 0
             if self.rect.right > SCREEN_WIDTH:
                 self.rect.right = SCREEN_WIDTH
+            self.hitbox.center = self.rect.center
 
     def move(self, left, right, jump, attack, mine):
         # Handle action inputs first
