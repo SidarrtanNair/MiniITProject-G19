@@ -42,7 +42,6 @@ clock = pygame.time.Clock()
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 def load_base_animations(sprite_sheet_image):
-    """Load base animations (idle, walk, jump) from main sprite sheet."""
     sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
     animation_list = []
     step_counter = 0
@@ -55,7 +54,6 @@ def load_base_animations(sprite_sheet_image):
     return animation_list
 
 def load_action_animations(attack_image, mine_image, sprite_width, sprite_height, scale_factor):
-    """Load action animations (attack, mine) from separate sprite sheets."""
     action_animations = []
     
     # Load attack animation
@@ -94,6 +92,7 @@ class Player:
         self.image = self.scale_current_image()
         self.rect = self.image.get_rect()
         self.rect.bottomleft = (50, SCREEN_HEIGHT - 50)
+        self.hitbox = self.rect.inflate(-60, -10)
 
         self.vel_x = 0
         self.vel_y = 0
@@ -230,6 +229,7 @@ class Player:
                 self.rect.left = 0
             if self.rect.right > SCREEN_WIDTH:
                 self.rect.right = SCREEN_WIDTH
+            self.hitbox.center = self.rect.center
 
     def move(self, left, right, jump, attack, mine):
         # Handle action inputs first
