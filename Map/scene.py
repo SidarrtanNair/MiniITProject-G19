@@ -11,7 +11,7 @@ from PlayerV4 import IDLE, WALK, JUMP, ATTACK, MINE, SCALE
 from Enemy import Enemy
 from Boss import Boss
 from spritesheet import SpriteSheet
-# Force Python to see the project root (where main.py is located)
+
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -20,7 +20,7 @@ if project_root not in sys.path:
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, sprite_sheet, scale, blocks, block_width, block_height):
         pygame.sprite.Sprite.__init__(self)
-        # Animation variables
+    
         self.animation_list = []
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
@@ -38,8 +38,8 @@ class Enemy(pygame.sprite.Sprite):
         # Combat variables
         self.health = 100
         self.max_health = 100
-        self.attack_damage = 5  # 5% of player max health (100). Change to 100 for full player damage.
-        self.attack_cooldown = 2500  # 1.5 seconds between attacks (reduced for more responsive feel)
+        self.attack_damage = 5  
+        self.attack_cooldown = 2500  
         self.last_attack_time = 0
         self.is_dead = False
         
@@ -63,42 +63,40 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         
-        # NEW: Create masks for pixel-perfect collision (one per animation frame)
+       
         self.masks = []
         for image in self.animation_list:
             mask = pygame.mask.from_surface(image)
             self.masks.append(mask)
-        self.current_mask = self.masks[self.frame_index]  # Start with first frame's mask
+        self.current_mask = self.masks[self.frame_index]  
         
         # Find ground position after initialization
         self.find_ground()
     
     def find_ground(self):
-        # Find the highest (smallest top y) surface block (grass or magma_block) nearby
-        ground_y = self.rect.y + (self.block_height * 10)  # Safer fallback: ~10 blocks below initial y (~320px)
+        ground_y = self.rect.y + (self.block_height * 10)  
         
-        # Widen search to 5 blocks radius for better detection in varied terrain
+      
         search_radius = self.block_width * 5
         for block in self.blocks:
             if (block["type"] in ["grass", "magma_block"] and 
-                abs(block["rect"].centerx - self.rect.centerx) < search_radius):
-                # No need for block.top > self.rect.y - we want the highest surface regardless
+                abs(block["rect"].centerx - self.rect.centerx) < search_radius)
                 ground_y = min(ground_y, block["rect"].top)
         
-        # If no surface found (very rare), fallback to estimated screen midpoint
-        if ground_y > self.rect.y + (self.block_height * 20):  # If fallback didn't change much
-            screen_height = 720  # Approximate; adjust if your display is different (or pass as param)
-            ground_y = screen_height // 2  # Safe high position to fall from
+      
+        if ground_y > self.rect.y + (self.block_height * 20):  
+            screen_height = 720
+            ground_y = screen_height // 2  
         
-        # Position above the ground
-        self.rect.bottom = ground_y - 50  # Reduced offset to -50px (less fall distance, safer)
+        
+        self.rect.bottom = ground_y - 50  
         self.on_ground = False
         self.vel_y = 0
         
-        # NEW: Anti-overlap safety - lift up if currently overlapping any solid block
+   
         while self.check_collision(0, 0):
-            self.rect.y -= 5  # Move up 5px at a time until clear
-            if self.rect.top < 0:  # Prevent going off-screen top
+            self.rect.y -= 5  
+            if self.rect.top < 0:  
                 self.rect.top = 0
                 break
 
@@ -127,7 +125,6 @@ class Enemy(pygame.sprite.Sprite):
         if self.can_attack() and not self.is_dead:
             player.get_damage(self.attack_damage)
             self.last_attack_time = pygame.time.get_ticks()
-            # Optional: Trigger visual flash on player hit
             if hasattr(player, 'hit_flash'):
                 player.hit_flash = pygame.time.get_ticks()
             return True
@@ -714,7 +711,13 @@ class Playeronworld(Player): #1
                 self.rect.left = 0
             if self.rect.right > self.world_width:
                 self.rect.right = self.world_width
-
+            border_height = 20  # same as your top/bottom border
+            
+            if self.rect.top < border_height:
+                self.rect.top = border_height
+                
+            if self.rect.bottom > self.screen.get_height() - border_height:
+                self.rect.bottom = self.screen.get_height() - border_height
             self.hitbox.center = self.rect.center
             self.hitbox = self.rect.inflate(-60, -10)
 
