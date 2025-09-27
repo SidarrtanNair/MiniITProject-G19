@@ -18,13 +18,12 @@ class Resource(pygame.sprite.Sprite):
         super().__init__()
         self.resource_type = resource_type
         self.image = pygame.Surface((30, 30))
-        # Color based on resource type
         if resource_type == "wood":
             self.image.fill((139, 69, 19))  # Brown
         elif resource_type == "stone":
             self.image.fill((128, 128, 128))  # Gray
         else:
-            self.image.fill((255, 255, 0))  # Yellow for others
+            self.image.fill((255, 255, 0))  # Yellow 
         self.rect = self.image.get_rect(topleft=(x, y))
 
 # Create player instance

@@ -85,7 +85,7 @@ class BossAnimator:
         self.animations = load_boss_animations_dict(scale_factor)
         self.current_animation = 'idle'
         self.current_frame = 0
-        self.animation_speed = 0.15  # Animation speed in seconds
+        self.animation_speed = 0.15   
         self.frame_timer = 0
         self.facing_right = True
         

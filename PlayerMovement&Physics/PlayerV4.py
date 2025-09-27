@@ -27,7 +27,7 @@ FPS = 60
 # Animation frames count for base animations
 base_animation_steps = [6, 8, 6, 5]  # idle, walk right, jump, etc.
 # Animation frames count for action animations (attack, mine)
-action_animation_steps = [6, 6]  # attack, mine - adjust these based on your actual sprite frames
+action_animation_steps = [6, 6]  # attack, mine 
 
 SCALE = 3
 
@@ -59,7 +59,7 @@ def load_action_animations(attack_image, mine_image, sprite_width, sprite_height
     # Load attack animation
     attack_sheet = spritesheet.SpriteSheet(attack_image)
     attack_frames = []
-    for i in range(action_animation_steps[0]):  # attack frames
+    for i in range(action_animation_steps[0]):  
         frame = attack_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
         attack_frames.append(frame)
     action_animations.append(attack_frames)
@@ -67,7 +67,7 @@ def load_action_animations(attack_image, mine_image, sprite_width, sprite_height
     # Load mine animation
     mine_sheet = spritesheet.SpriteSheet(mine_image)
     mine_frames = []
-    for i in range(action_animation_steps[1]):  # mine frames
+    for i in range(action_animation_steps[1]):  
         frame = mine_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
         mine_frames.append(frame)
     action_animations.append(mine_frames)
@@ -81,12 +81,12 @@ class Player:
         self.gender = gender
         self.action = IDLE
         self.frame = 0
-        self.flip = False  # Used to flip image for left movement
+        self.flip = False  
         
         # Action state tracking
         self.is_performing_action = False
         self.action_start_time = 0
-        self.action_duration = 1000  # 1 second action duration
+        self.action_duration = 1000  
         
         self.image = self.get_current_frame()
         self.image = self.scale_current_image()
@@ -104,7 +104,7 @@ class Player:
         # --- HEALTH BAR ---
         self.current_health = 200
         self.maximum_health = 1000
-        self.health_bar_length = 100  # smaller for above player
+        self.health_bar_length = 100  
         self.health_ratio = self.maximum_health / self.health_bar_length
 
         self.last_update = pygame.time.get_ticks()
@@ -113,7 +113,7 @@ class Player:
     def get_current_frame(self):
         """Get the current frame based on action state."""
         if self.action in [ATTACK, MINE]:
-            action_index = self.action - ATTACK  # Convert to action animation index
+            action_index = self.action - ATTACK  
             if action_index < len(self.action_animation_list):
                 return self.action_animation_list[action_index][self.frame]
         
@@ -128,15 +128,15 @@ class Player:
         """Scale the current image appropriately."""
         image = self.get_current_frame()
         
-        # Different scaling for action sprites due to different pixel dimensions
+        
         if self.action in [ATTACK, MINE]:
-            # Action sprites have different dimensions, so we scale them differently
+            
             if self.gender == 'male':
-                # Male action sprites are 273x182, scale to match base sprite size
-                scale_factor = 2.0  # Adjust this to match your desired size
+                
+                scale_factor = 2.0  
             else:
-                # Female action sprites are 232x182, scale to match base sprite size  
-                scale_factor = 2.2  # Adjust this to match your desired size
+                 
+                scale_factor = 2.2  
             
             scaled_image = pygame.transform.scale(image, 
                 (int(image.get_width() * scale_factor), int(image.get_height() * scale_factor)))
@@ -157,7 +157,7 @@ class Player:
 
     def perform_action(self, action_type):
         """Start performing an action (attack or mine)."""
-        if not self.is_performing_action and not self.in_air:  # Can't perform actions while jumping
+        if not self.is_performing_action and not self.in_air:  
             self.action = action_type
             self.frame = 0
             self.is_performing_action = True
@@ -177,7 +177,6 @@ class Player:
             self.current_health = self.maximum_health
 
     def draw_health_bar(self, surf):
-        # Draw health bar above player
         x = self.rect.centerx - self.health_bar_length//2
         y = self.rect.top - 15
         pygame.draw.rect(surf, (60, 60, 60), (x, y, self.health_bar_length, 10))
@@ -186,7 +185,6 @@ class Player:
 
     # --- MOVEMENT & ANIMATION ---
     def update(self):
-        # Check if action should end
         if self.is_performing_action:
             current_time = pygame.time.get_ticks()
             if current_time - self.action_start_time >= self.action_duration:
@@ -203,7 +201,6 @@ class Player:
             # Check if we've reached the end of the current animation
             if self.frame >= self.get_animation_length():
                 if self.is_performing_action:
-                    # For actions, stop the action when animation completes
                     self.is_performing_action = False
                     self.action = IDLE
                 self.frame = 0
@@ -232,7 +229,6 @@ class Player:
             self.hitbox.center = self.rect.center
 
     def move(self, left, right, jump, attack, mine):
-        # Handle action inputs first
         if attack:
             self.perform_action(ATTACK)
             return
@@ -240,7 +236,6 @@ class Player:
             self.perform_action(MINE)
             return
 
-        # Don't allow movement during actions
         if self.is_performing_action:
             return
 

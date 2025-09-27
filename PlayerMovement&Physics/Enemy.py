@@ -1,12 +1,11 @@
 import pygame
 import random
 import os
-from spritesheet import SpriteSheet  # Import the SpriteSheet class
-
+from spritesheet import SpriteSheet  
 # Initialize pygame
 pygame.init()
 
-#file path
+# file path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 infoObject = pygame.display.Info()
@@ -14,7 +13,7 @@ SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption("Enemy Demo")
 
-# Enemy spritesheet - using a placeholder color since file might not exist
+# Enemy spritesheet 
 try:
     enemy_sheet_img = pygame.image.load(os.path.join(script_dir,'Sprite_Img/enemy_sprite.png')).convert_alpha()
 except pygame.error:
@@ -27,7 +26,6 @@ enemy_sheet = SpriteSheet(enemy_sheet_img)
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, SCREEN_WIDTH, y, sprite_sheet, scale):
         pygame.sprite.Sprite.__init__(self)
-        #define variables
         self.animation_list = []
         self.frame_index = 0
         self.update_time = pygame.time.get_ticks()
@@ -38,13 +36,13 @@ class Enemy(pygame.sprite.Sprite):
             self.flip = False
         
         # Jumping variables
-        self.vel_y = 0  # Vertical velocity
-        self.gravity = 0.8  # Gravity force
-        self.jump_speed = -15  # Initial jump velocity (negative for upward)
-        self.on_ground = False  # Track if enemy is on ground
-        self.ground_y = y  # Store original ground position
-        self.jump_timer = 0  # Timer for jump intervals
-        self.jump_cooldown = random.randint(60, 120)  # Random jump frequency (frames)
+        self.vel_y = 0  
+        self.gravity = 0.8  
+        self.jump_speed = -15  
+        self.on_ground = False  
+        self.ground_y = y  
+        self.jump_timer = 0  
+        self.jump_cooldown = random.randint(60, 120)  
         
         #load images from spritesheet
         animation_steps = 8
@@ -69,7 +67,6 @@ class Enemy(pygame.sprite.Sprite):
                 player.get_damage(10)    
         
     def update(self, scroll, SCREEN_WIDTH, player):
-        #update animation
         ANIMATION_COOLDOWN = 50
         #update image depending on current frame
         self.image = self.animation_list[self.frame_index]
@@ -89,7 +86,7 @@ class Enemy(pygame.sprite.Sprite):
             self.vel_y = self.jump_speed
             self.on_ground = False
             self.jump_timer = 0
-            self.jump_cooldown = random.randint(60, 120)  # Set next jump interval
+            self.jump_cooldown = random.randint(60, 120)  
         
         # Apply gravity
         self.vel_y += self.gravity
@@ -118,13 +115,13 @@ class Enemy(pygame.sprite.Sprite):
             self.attack_player(player)
 
 
-# Create sprite group (fixed typo: sprtie -> sprite)
+# Create sprite group 
 enemy_group = pygame.sprite.Group()
 
 def main():
-    clock = pygame.time.Clock()  # Added clock for FPS control
+    clock = pygame.time.Clock()  
     run = True
-    scroll = 0  # Added scroll variable
+    scroll = 0  
     
     while run:
         # Handle events
@@ -136,14 +133,14 @@ def main():
                     run = False
         
         # Clear screen
-        screen.fill((135, 206, 235))  # Light blue background
+        screen.fill((135, 206, 235))  # Light blue 
         
-        # Generate enemy (fixed missing colon)
+        # Generate enemy 
         if len(enemy_group) == 0:
             enemy = Enemy(SCREEN_WIDTH, SCREEN_HEIGHT - 100, enemy_sheet, 2)
             enemy_group.add(enemy)
 
-        # Update enemy (fixed parameters - added scroll)
+        # Update enemy 
         enemy_group.update(scroll, SCREEN_WIDTH, player)
 
         # Draw sprite
@@ -153,7 +150,7 @@ def main():
         pygame.display.update()
         clock.tick(60)  # 60 FPS
 
-    pygame.quit()  # Fixed: added parentheses
+    pygame.quit()  
 
 # Run the game
 if __name__ == "__main__":
