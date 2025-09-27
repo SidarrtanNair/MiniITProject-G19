@@ -1157,8 +1157,6 @@ class generateworld:
                         blocktype = "dirt"
 
                     texture = self.blocklibrary[blocktype].copy()
-
-                    # shading for depth
                     depth = (y_px - surface_y) // self.block_height
                     if depth > 0:
                         max_depth = 20
@@ -1168,23 +1166,18 @@ class generateworld:
                     rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
-                    # randomly add trees
                     if blocktype == "grass" and random.random() < 0.15:
                         ground_y = rect.y
                         # stump
                         stump_rect = self.blocklibrary['tree_stump'].get_rect(topleft=(rect.x, ground_y - self.block_height))
                         self.blocks.append({"type": "tree_stump", "texture": self.blocklibrary['tree_stump'], "rect": stump_rect})
-
-                        # remove bush underneath
                         self.blocks = [b for b in self.blocks if not (b["type"] == "bush" and b["rect"].colliderect(stump_rect))]
 
-                        # tree logs
                         tree_height = random.randint(3, 6)
                         for i in range(tree_height):
                             log_rect = self.blocklibrary['tree_log'].get_rect(topleft=(rect.x, ground_y - (i + 2) * self.block_height))
                             self.blocks.append({"type": "tree_log", "texture": self.blocklibrary['tree_log'], "rect": log_rect})
 
-                        # treetop
                         treetop_y = ground_y - (tree_height + 4) * self.block_height
                         treetop_textures = [
                             ['tree_topleft','tree_topmiddle','tree_topright'],
@@ -1197,8 +1190,6 @@ class generateworld:
                                     topleft=(rect.x + (dx - 1) * self.block_width, treetop_y + dy * self.block_height))
                                 self.blocks.append({"type": "tree_top", "texture": self.blocklibrary[tex_name], "rect": leaf_rect})
 
-        # ===== Build fullmap once after generating all blocks =====
-        # Each block = 1 pixel on minimap
         world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
         world_height_blocks = max(block["rect"].bottom for block in self.blocks) // self.block_height
         self.fullmap_surf = pygame.Surface((world_width_blocks, world_height_blocks))
@@ -1225,9 +1216,8 @@ class generateworld:
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
                 self.fullmap_surf.set_at((mx, my), color)
 
-            # make sure we stay in bounds
 
-        # find the rightmost bush block
+    
         portal_x = None
         portal_y = None
         for block in self.blocks:
@@ -1239,9 +1229,8 @@ class generateworld:
             px = portal_x // self.block_width
             py = portal_y // self.block_height
 
-            py = py - 6  # portal base in blocks
+            py = py - 6 
 
-            # clear space in blocks
             portal_rect = pygame.Rect(px*self.block_width, py*self.block_height,
                           1*self.block_width, 6*self.block_height)
             self.blocks = [b for b in self.blocks if not portal_rect.colliderect(b["rect"])]
@@ -1258,7 +1247,7 @@ class generateworld:
             rect = self.blocklibrary['portal_block'].get_rect(topleft=(px*self.block_width, (py+5)*self.block_height))
             self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
 
-            # corrupt area around portal in block units
+     
             self.corrupt_area(px, py, radius=15, seed=self.seed)
 
     def gen_hell(self, number_levels=3):
@@ -1310,9 +1299,6 @@ class generateworld:
         rect = self.blocklibrary['portal_block'].get_rect(topleft=(portal_x, portal_y + 5 * self.block_height))
         self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
 
-                                        
-
-        # Build fullmap once for hell
         world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
         world_height_blocks = max(block["rect"].bottom for block in self.blocks) // self.block_height
         self.fullmap_surf = pygame.Surface((world_width_blocks, world_height_blocks))
@@ -1378,14 +1364,12 @@ class generateworld:
             self.init_player(gender)
 
     def add_to_inventory(self, bloktype, amount=1):
-    # Try stacking in inventory
         for i, slot in enumerate(self.inventory_slots):
             if slot and slot[0] == bloktype:
                 self.inventory_slots[i] = (bloktype, slot[1] + amount)
                 self.update_hotbar()
                 return
 
-        # If not found, put in first empty slot
         for i, slot in enumerate(self.inventory_slots):
             if slot is None:
                 self.inventory_slots[i] = (bloktype, amount)
@@ -1666,7 +1650,7 @@ class generateworld:
                         if block["rect"].collidepoint(world_mouse):
                             if block["type"] in ["portal_block", "portal_energy_block"]:
                                 if self.dimension == "overworld":
-                                    # Enter Hell
+                              
                                     self.loading_screen("Entering Hell...", 1.5)
                                     self.dimension = "hell"
                                     self.current_scene = 0
@@ -1676,26 +1660,22 @@ class generateworld:
                                     self.boss_group.empty()
                                     self.fireball_group.empty()
                                     
-                                    # Update player references
+                                
                                     self.player.blocks = self.blocks
                                     self.player.boss_group = self.boss_group
                                     self.player.fireball_group = self.fireball_group
                                     
-                                    # Move player to hell spawn
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
                                     self.player.vel_y = 0
                                     
-                                    # Start Hell music
                                     pygame.mixer.music.stop()
                                     pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
                                     pygame.mixer.music.play(-1)
                                     
-                                    # Initialize boss
                                     self.init_boss_system(hell_mode=True)
 
                                 else:
-                                    # Return to Overworld
                                     self.loading_screen("Returning to Overworld...", 1.5)
                                     self.dimension = "overworld"
                                     self.current_scene = 0
@@ -1705,17 +1685,14 @@ class generateworld:
                                     self.boss_group.empty()
                                     self.fireball_group.empty()
                                     
-                                    # Update player references
                                     self.player.blocks = self.blocks
                                     self.player.boss_group = self.boss_group
                                     self.player.fireball_group = self.fireball_group
-                                    
-                                    # Move player to overworld spawn
+
                                     self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
                                     self.player.vel_x = 0
                                     self.player.vel_y = 0
                                     
-                                    # Start Overworld music
                                     pygame.mixer.music.stop()
                                     pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
                                     pygame.mixer.music.play(-1)
@@ -1747,8 +1724,6 @@ class generateworld:
                                     crafted_amount = 4 
                                 elif crafted_item == "stone_bricks":
                                     crafted_amount = 4
-
-                                # consume materials from inventory
                                 for mat, amount in reqs.items():
                                     remaining = amount
                                     for idx, slot in enumerate(self.inventory_slots):
@@ -1762,18 +1737,11 @@ class generateworld:
                                                 remaining -= count
                                                 self.inventory_slots[idx] = None
 
-                                # add crafted items to inventory
                                 self.add_to_inventory(crafted_item, crafted_amount)
                                 self.update_hotbar()
                                 self.sounds["craft"].play()
 
                         indexs += 1
-
-
-
-                                # add crafted item using your existing system
-                        
-
                                 
                 if event.type == pygame.MOUSEBUTTONDOWN and not self.show_inventory or self.show_crafting:
                     mouse_position = pygame.mouse.get_pos()
@@ -1797,7 +1765,6 @@ class generateworld:
                                                 self.inventory_slots[i] = (bloktype, slot[1]+1)
                                                 added = True
                                                 break
-                                        # If not found, add to first empty slot
                                         if not added:
                                             for i, slot in enumerate(self.inventory_slots):
                                                 if slot is None:
@@ -1878,37 +1845,31 @@ class generateworld:
                 self.player.move(left, right, jump, attack, mine)
                 self.player.update()
 
-                # Update enemies in current and adjacent scenes (for performance)
                 screen_width = self.screen.get_width()
                 current_scene_start = self.current_scene * screen_width
                 current_scene_end = (self.current_scene + 1) * screen_width
 
                 for enemy in self.enemy_group:
-                    # Only update if enemy is in/near current scene (avoids updating off-screen enemies)
                     if (enemy.rect.right > current_scene_start - 200 and 
                         enemy.rect.left < current_scene_end + 200):
                         enemy.update(self.player)
 
-                # ==== NEW: UPDATE BOSS AND FIREBALLS ==== #
                 last_scene_index = self.number_levels - 1
-                if abs(self.current_scene - last_scene_index) <= 1:  # Update in last scene or adjacent
+                if abs(self.current_scene - last_scene_index) <= 1: 
                     if self.boss_group:
-                        bosses = self.boss_group.sprites()  # <-- call the function
+                        bosses = self.boss_group.sprites()
                         for boss in bosses:
                             boss.update(self.player, self.fireball_group)
 
-                    # Update fireballs (global, as they can cross scenes)
                     for fireball in self.fireball_group:
                         fireball.update(self.player)
 
-                # Remove dead fireballs
                 for fireball in self.fireball_group.copy():
-                    if not fireball.alive():  # Fireballs self-kill on collision
+                    if not fireball.alive(): 
                         self.fireball_group.remove(fireball)
-                
-                # ==== NEW: PLAYER ATTACK BOSS/ENEMIES ==== #
+            
                 if attack and self.player.is_performing_action and self.player.action == ATTACK:
-                    # Add attack cooldown to prevent spam
+            
                     current_time = pygame.time.get_ticks()
                     if not hasattr(self, 'last_player_attack'):
                         self.last_player_attack = 0
@@ -1963,25 +1924,19 @@ class generateworld:
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
 
             # ==== DRAW ENEMIES ==== #
-            # Only draw enemies in current scene or adjacent scenes for performance
             current_scene_start = self.current_scene * screen_width
             current_scene_end = (self.current_scene + 1) * screen_width
             
             for enemy in self.enemy_group:
-                # Check if enemy is in visible area (current scene +/- some margin)
                 if (enemy.rect.right > current_scene_start - 200 and 
                     enemy.rect.left < current_scene_end + 200):
                     enemy.draw(self.screen, camera_x)
 
-            # ==== NEW: DRAW BOSS AND FIREBALLS ==== #
-            if self.current_scene == last_scene_index or abs(self.current_scene - last_scene_index) <= 1:  # Visible in adjacent scenes
-                # Draw boss
+            if self.current_scene == last_scene_index or abs(self.current_scene - last_scene_index) <= 1: 
                 for boss in self.boss_group:
                     boss.draw(self.screen, camera_x)
     
-                # Draw fireballs (with camera)
                 for fireball in self.fireball_group:
-                    # Only draw if in visible area
                     if (fireball.rect.right > current_scene_start - 200 and 
                         fireball.rect.left < current_scene_end + 200):
                         fireball.draw(self.screen, camera_x)
@@ -1992,14 +1947,13 @@ class generateworld:
 
                 #===========Heathdissapearlogic============#
             should_show_health = (
-                current_time - self.last_health_change <= self.health_display_time or  # Recent change
-                self.player.current_health < self.player.maximum_health  # Not at full health
+                current_time - self.last_health_change <= self.health_display_time or self.player.current_health < self.player.maximum_health  #
             )
             
             if should_show_health:
                 self.player.draw_health_bar(self.screen, camera_x)
             
-            # Always draw the player
+
             self.player.draw(self.screen, camera_x)
 
            
@@ -2010,10 +1964,10 @@ class generateworld:
                 panel.fill((30, 30, 30, 180))
                 self.screen.blit(panel, (0, 0))
 
-                # === build inventory counts as a dict ===
+
                 inventory_counts = {}
                 for slot in self.inventory_slots:
-                    if slot:  # slot = (item, count)
+                    if slot:  
                         item, count = slot
                         inventory_counts[item] = inventory_counts.get(item, 0) + count
 
@@ -2031,7 +1985,7 @@ class generateworld:
                     row_y = start_y + i * slot_height
                     x_offset = 20
 
-                    # --- check if player has enough materials ---
+                 
                     craftable = True
                     for mat, amount in reqs.items():
                         total = inventory_counts.get(mat, 0)
@@ -2040,24 +1994,20 @@ class generateworld:
                             break
                     color = (255, 255, 255) if craftable else (150, 50, 50)
 
-                    # --- draw crafted item icon ---
                     if crafted_item in self.blocklibrary:
                         icon = pygame.transform.scale(self.blocklibrary[crafted_item], (32, 32))
                         self.screen.blit(icon, (x_offset, row_y))
                     x_offset += 36
 
-                    # --- draw crafted amount ---
                     crafted_amount = 4 if crafted_item in ["wood_planks", "stone_bricks"] else 1
                     count_surf = self.crafting_font.render(f"x{crafted_amount}", True, color)
                     self.screen.blit(count_surf, (x_offset, row_y + 8))
                     x_offset += 36
 
-                    # --- draw arrow separator ---
                     arrow_surf = self.crafting_font.render("←", True, color)
                     self.screen.blit(arrow_surf, (x_offset, row_y + 8))
                     x_offset += 16
 
-                    # --- draw material icons + counts ---
                     for mat, amount in reqs.items():
                         if mat in self.blocklibrary:
                             mat_icon = pygame.transform.scale(self.blocklibrary[mat], (32, 32))
