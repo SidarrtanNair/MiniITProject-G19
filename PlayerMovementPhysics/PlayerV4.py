@@ -55,7 +55,7 @@ def load_base_animations(sprite_sheet_image):
 def load_action_animations(attack_image, mine_image, sprite_width, sprite_height, scale_factor):
     action_animations = []
     # Attack
-    attack_sheet =SpriteSheet(attack_image)
+    attack_sheet = SpriteSheet(attack_image)
     attack_frames = [attack_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black') 
                      for i in range(action_animation_steps[0])]
     action_animations.append(attack_frames)
@@ -75,7 +75,6 @@ class Player:
         self.action = IDLE
         self.frame = 0
         self.flip = False
-        self.hit_flash = 0
 
         # Reference position (fixed feet position)
         self.pos = pygame.math.Vector2(50, SCREEN_HEIGHT - 50)
@@ -133,12 +132,12 @@ class Player:
     # --- ACTIONS ---
     def perform_action(self, action_type):
         if not self.is_performing_action and not self.in_air:
-            self.action = action_type          # Set action to ATTACK or MINE
-            self.frame = 0                      # Start from first frame
-            self.is_performing_action = True    # Flag that an action is ongoing
-            self.action_start_time = pygame.time.get_ticks()  # Timestamp to track duration
+            self.action = action_type
+            self.frame = 0
+            self.is_performing_action = True
+            self.action_start_time = pygame.time.get_ticks()
 
-        # --- HEALTH ---
+    # --- HEALTH ---
     def get_damage(self, amount):
         self.current_health = max(self.current_health - amount, 0)
     def get_health(self, amount):
