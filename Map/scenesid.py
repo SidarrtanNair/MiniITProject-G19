@@ -3,7 +3,7 @@ from opensimplex import *
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.dirname(current_directory)
-player_directory = os.path.join(parent_directory, 'PlayerMovement&Physics')
+player_directory = os.path.join(parent_directory, 'PlayerMovementPhysics')
 sys.path.append(player_directory)
 
 from PlayerV4 import Player, load_base_animations, load_action_animations, gender_selection_screen, main
@@ -228,7 +228,7 @@ boss_animation_config = {
 
 def load_boss_animations(scale=2):
     boss_animations = {}
-    sprite_img_dir = os.path.join(parent_directory, 'PlayerMovement&Physics' )
+    sprite_img_dir = os.path.join(parent_directory, 'PlayerMovementPhysics' )
     
     for animation_name, config in boss_animation_config.items():
         sprite_path = os.path.join(sprite_img_dir, config['file'])
@@ -978,7 +978,7 @@ class generateworld:
     def init_enemy_system(self):
         """Initialize enemy sprite sheet and enemy groups"""
         try:
-            enemy_sheet_img = pygame.image.load("PlayerMovement&Physics/Sprite_Img/enemy_sprite.png").convert_alpha()
+            enemy_sheet_img = pygame.image.load("PlayerMovementPhysics/Sprite_Img/enemy_sprite.png").convert_alpha()
         except pygame.error:
             # Create placeholder sprite sheet if file doesn't exist
             enemy_sheet_img = pygame.Surface((256, 32)).convert_alpha()
@@ -1077,15 +1077,15 @@ class generateworld:
         gender = gender_selection_screen()
         # Load base sprites
         if gender == 'male':
-            base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_spriteV8_flipped.png')).convert_alpha()
-            attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_sprite_attack.png')).convert_alpha()
-            mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'male_sprite_mine.png')).convert_alpha()
+            base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')).convert_alpha()
+            attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_sprite_attack.png')).convert_alpha()
+            mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_sprite_mine.png')).convert_alpha()
             action_sprite_width, action_sprite_height = 273, 182
             action_scale_factor = 0.3
         else:
-            base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_spriteV1_flipped.png')).convert_alpha()
-            attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()
-            mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovement&Physics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()  # Using attack for mine if mine doesn't exist
+            base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'female_spriteV1_flipped.png')).convert_alpha()
+            attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()
+            mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()  # Using attack for mine if mine doesn't exist
             action_sprite_width, action_sprite_height = 232, 182
             action_scale_factor = 0.3
         # Load animations
