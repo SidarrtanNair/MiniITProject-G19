@@ -1,11 +1,18 @@
 import pygame
-from .spritesheet import SpriteSheet
 import os
 import sys
 
+# Directories
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.dirname(current_directory)
 player_directory = os.path.join(parent_directory, 'Map')
+
+# Add directories to sys.path so imports work
+sys.path.append(current_directory)   # For local modules
+sys.path.append(player_directory)    # For Map folder modules
+
+# Now you can safely import
+from spritesheet import SpriteSheet
 
 pygame.init()
 
@@ -308,7 +315,7 @@ def main():
         base_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_spriteV1_flipped.png')).convert_alpha()
         attack_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_sprite_attack.png')).convert_alpha()
         mine_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_sprite_mine.png')).convert_alpha()
-        action_width, action_height = 232,182
+        action_width, action_height = 273,182
 
     base_animation_list = load_base_animations(base_sprite_image)
     action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image,

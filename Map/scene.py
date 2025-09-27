@@ -1,97 +1,703 @@
 import pygame , random , time , sys , os 
 from opensimplex import *
 
+current_directory = os.path.dirname(os.path.abspath(__file__))
+parent_directory = os.path.dirname(current_directory)
+player_directory = os.path.join(parent_directory, 'PlayerMovementPhysics')
+sys.path.append(player_directory)
 
-
-
+from PlayerV4 import Player, load_base_animations, load_action_animations, gender_selection_screen, main
+from PlayerV4 import IDLE, WALK, JUMP, ATTACK, MINE, SCALE
+from Enemy import Enemy
+from Boss import Boss
+from spritesheet import SpriteSheet
 # Force Python to see the project root (where main.py is located)
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Now import from PlayerMovementPhysics
-from PlayerMovementPhysics.PlayerV4 import Player, load_animations, gender_selection_screen
-from PlayerMovementPhysics.PlayerV4 import IDLE, WALK, JUMP ,SCALE
+# ======== ENEMY ======== #
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, sprite_sheet, scale, blocks, block_width, block_height):
+        pygame.sprite.Sprite.__init__(self)
+        # Animation variables
+        self.animation_list = []
+        self.frame_index = 0
+        self.update_time = pygame.time.get_ticks()
+        self.direction = random.choice([-1, 1])
+        self.flip = True if self.direction == 1 else False
+        
+        # Physics variables
+        self.vel_y = 0
+        self.gravity = 0.8
+        self.jump_speed = -15
+        self.on_ground = False
+        self.jump_timer = 0
+        self.jump_cooldown = random.randint(60, 120)
+        
+        # Combat variables
+        self.health = 100
+        self.max_health = 100
+        self.attack_damage = 5  # 5% of player max health (100). Change to 100 for full player damage.
+        self.attack_cooldown = 2500  # 1.5 seconds between attacks (reduced for more responsive feel)
+        self.last_attack_time = 0
+        self.is_dead = False
+        
+        # World collision
+        self.blocks = blocks
+        self.block_width = block_width
+        self.block_height = block_height
+        
+        # Load animation frames
+        animation_steps = 8
+        for animation in range(animation_steps):
+            image = sprite_sheet.get_image(animation, 32, 32, scale, (0, 0, 0))
+            if self.flip:
+                image = pygame.transform.flip(image, True, False)
+            image.set_colorkey((0, 0, 0))
+            self.animation_list.append(image)
+        
+        # Set initial image and rect
+        self.image = self.animation_list[self.frame_index]
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        
+        # NEW: Create masks for pixel-perfect collision (one per animation frame)
+        self.masks = []
+        for image in self.animation_list:
+            mask = pygame.mask.from_surface(image)
+            self.masks.append(mask)
+        self.current_mask = self.masks[self.frame_index]  # Start with first frame's mask
+        
+        # Find ground position after initialization
+        self.find_ground()
+    
+    def find_ground(self):
+        # Find the highest (smallest top y) surface block (grass or magma_block) nearby
+        ground_y = self.rect.y + (self.block_height * 10)  # Safer fallback: ~10 blocks below initial y (~320px)
+        
+        # Widen search to 5 blocks radius for better detection in varied terrain
+        search_radius = self.block_width * 5
+        for block in self.blocks:
+            if (block["type"] in ["grass", "magma_block"] and 
+                abs(block["rect"].centerx - self.rect.centerx) < search_radius):
+                # No need for block.top > self.rect.y - we want the highest surface regardless
+                ground_y = min(ground_y, block["rect"].top)
+        
+        # If no surface found (very rare), fallback to estimated screen midpoint
+        if ground_y > self.rect.y + (self.block_height * 20):  # If fallback didn't change much
+            screen_height = 720  # Approximate; adjust if your display is different (or pass as param)
+            ground_y = screen_height // 2  # Safe high position to fall from
+        
+        # Position above the ground
+        self.rect.bottom = ground_y - 50  # Reduced offset to -50px (less fall distance, safer)
+        self.on_ground = False
+        self.vel_y = 0
+        
+        # NEW: Anti-overlap safety - lift up if currently overlapping any solid block
+        while self.check_collision(0, 0):
+            self.rect.y -= 5  # Move up 5px at a time until clear
+            if self.rect.top < 0:  # Prevent going off-screen top
+                self.rect.top = 0
+                break
+
+    def check_collision(self, dx, dy):
+        temp_rect = self.rect.copy()
+        temp_rect.x += dx
+        temp_rect.y += dy
+        for block in self.blocks:
+            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
+                continue
+            if temp_rect.colliderect(block["rect"]):
+                return True
+        return False
+    
+    def take_damage(self, damage):
+        self.health -= damage
+        if self.health <= 0:
+            self.health = 0
+            self.is_dead = True
+    
+    def can_attack(self):
+        current_time = pygame.time.get_ticks()
+        return current_time - self.last_attack_time >= self.attack_cooldown
+    
+    def attack_player(self, player):
+        if self.can_attack() and not self.is_dead:
+            player.get_damage(self.attack_damage)
+            self.last_attack_time = pygame.time.get_ticks()
+            # Optional: Trigger visual flash on player hit
+            if hasattr(player, 'hit_flash'):
+                player.hit_flash = pygame.time.get_ticks()
+            return True
+        return False
+    
+    def update(self, player=None):
+        if self.is_dead:
+            return
+        
+        # Update animation
+        ANIMATION_COOLDOWN = 150
+        if pygame.time.get_ticks() - self.update_time > ANIMATION_COOLDOWN:
+            self.update_time = pygame.time.get_ticks()
+            self.frame_index += 1
+        
+        if self.frame_index >= len(self.animation_list):
+            self.frame_index = 0
+        
+        self.image = self.animation_list[self.frame_index]
+        
+        self.current_mask = self.masks[self.frame_index % len(self.masks)]  # Cycle if needed
+        
+        # Handle jumping (only when on ground)
+        self.jump_timer += 1
+        if self.jump_timer >= self.jump_cooldown and self.on_ground:
+            self.vel_y = self.jump_speed
+            self.on_ground = False
+            self.jump_timer = 0
+            self.jump_cooldown = random.randint(60, 120)
+        
+        # Apply gravity
+        self.vel_y += self.gravity
+        
+        # Vertical movement with collision
+        if not self.check_collision(0, self.vel_y):
+            self.rect.y += self.vel_y
+        else:
+            if self.vel_y > 0:  # Landing
+                self.vel_y = 0
+                self.on_ground = True
+            elif self.vel_y < 0:  # Hitting ceiling
+                self.vel_y = 0
+        
+        # Horizontal movement with collision and direction change
+        move_x = self.direction * 1
+        if not self.check_collision(move_x, 0):
+            self.rect.x += move_x
+        else:
+            # Change direction when hitting wall
+            self.direction *= -1
+            self.flip = not self.flip
+            # Update animation frames for new direction
+            for i, frame in enumerate(self.animation_list):
+                self.animation_list[i] = pygame.transform.flip(frame, True, False)
+        
+        # Check collision with player for attack (now pixel-perfect)
+        if player and self.rect.colliderect(player.rect):
+            # First, quick rect check passed. Now do pixel-perfect mask check
+            # Offset masks to align with sprite positions
+            if hasattr(player, 'mask') and player.mask and self.current_mask.overlap(player.mask, (player.rect.x - self.rect.x, player.rect.y - self.rect.y)):
+                self.attack_player(player)
+            else:
+                # Fallback to rect collision if no mask
+                self.attack_player(player)
+    
+    def draw_health_bar(self, surf, camera_x):
+        if self.is_dead:
+            return
+        
+        bar_width = 40
+        bar_height = 4
+        x = self.rect.centerx + camera_x - bar_width//2
+        y = self.rect.top - 10
+
+        # Red background
+        redback = pygame.Surface((bar_width, bar_height))
+        redback.fill((255, 0, 0))
+        surf.blit(redback, (x, y))
+
+        # Green health
+        green_width = int(bar_width * (self.health/self.max_health))
+        if green_width > 0:
+            greenback = pygame.Surface((green_width, bar_height))
+            greenback.fill((0, 255, 0))
+            surf.blit(greenback, (x, y))
+    
+    def draw(self, surf, camera_x):
+        if not self.is_dead:
+            surf.blit(self.image, self.rect.move(camera_x, 0))
+            self.draw_health_bar(surf, camera_x)
+
+#========== BOSS ==========#
+boss_animation_config = {
+    'idle': {'file': 'Sprite_Img/boss_idle.png', 'frames': 7, 'width': 128, 'height': 128},
+    'dead': {'file': 'Sprite_Img/boss_dead.png', 'frames': 6, 'width': 128, 'height': 128},
+    'attack1': {'file': 'Sprite_Img/boss_attack1.png', 'frames': 8, 'width': 128, 'height': 128},
+    'attack2': {'file': 'Sprite_Img/boss_attack2.png', 'frames': 4, 'width': 128, 'height': 128},
+    'fireball': {'file': 'Sprite_Img/boss_fireball.png', 'frames': 6, 'width': 64, 'height': 64},
+    'run': {'file': 'Sprite_Img/boss_run.png', 'frames': 8, 'width': 128, 'height': 128},
+    'jump': {'file': 'Sprite_Img/boss_jump.png', 'frames': 9, 'width': 128, 'height': 128}
+}
+
+def load_boss_animations(scale=2):
+    boss_animations = {}
+    sprite_img_dir = os.path.join(parent_directory, 'PlayerMovementPhysics' )
+    
+    for animation_name, config in boss_animation_config.items():
+        sprite_path = os.path.join(sprite_img_dir, config['file'])
+        
+        try:
+            sprite_image = pygame.image.load(sprite_path).convert_alpha()
+            sprite_sheet = SpriteSheet(sprite_image)
+            
+            frames = []
+            for frame_index in range(config['frames']):
+                frame = sprite_sheet.get_image(
+                    frame_index, config['width'], config['height'], scale, (0, 0, 0)  # Black colorkey
+                )
+                frames.append(frame)
+            boss_animations[animation_name] = frames
+        except pygame.error:
+            print(f"Warning: Could not load boss sprite {sprite_path}. Using placeholder.")
+            # Placeholder: Magenta surface
+            placeholder = pygame.Surface((config['width'] * scale, config['height'] * scale)).convert_alpha()
+            placeholder.fill((255, 0, 255))
+            boss_animations[animation_name] = [placeholder] * config['frames']
+    
+    return boss_animations
+
+class BossAnimator:
+    def __init__(self, animations):
+        self.animations = animations
+        self.current_animation = 'idle'
+        self.current_frame = 0
+        self.update_time = pygame.time.get_ticks()
+        self.animation_cooldown = 150  # ms per frame
+        self.facing_right = False  # False = face left (toward player, negative x)
+        # Define which animations loop (idle, run, jump should loop; attacks/dead don't)
+        self.looping_animations = {'idle', 'run', 'jump'}
+
+    def update(self):
+        current_time = pygame.time.get_ticks()
+        if current_time - self.update_time > self.animation_cooldown:
+            self.update_time = current_time
+            max_frames = len(self.animations[self.current_animation])
+            self.current_frame += 1
+            if self.current_frame >= max_frames:
+                if self.current_animation in self.looping_animations:
+                    self.current_frame = 0  # Loop back to start
+                else:
+                    self.current_frame = max_frames - 1  # Stay on last frame (e.g., for dead/attack end)
+        # Return True if at end (for non-looping anims)
+        return self.current_frame >= len(self.animations[self.current_animation]) - 1
+
+    def set_animation(self, animation_name, loop=True):
+        if animation_name in self.animations and animation_name != self.current_animation:
+            self.current_animation = animation_name
+            self.current_frame = 0
+            self.update_time = pygame.time.get_ticks()
+            # Override loop if specified in config (but for simplicity, use class default)
+            if animation_name in ['attack1', 'attack2']:
+                loop = False  # Override for melee/ranged
+
+    def reset_to_idle(self):
+        self.set_animation('idle')
+
+    def get_current_image(self):
+        frame = self.animations[self.current_animation][self.current_frame]
+        if not self.facing_right:  # Face left by default (negative x)
+            frame = pygame.transform.flip(frame, True, False)
+        return frame
+
+
+    
+class Fireball(pygame.sprite.Sprite):
+    def __init__(self, x, y, target_x, fireball_frames, blocks, block_width, block_height):
+        super().__init__()
+        self.frames = fireball_frames
+        self.frame_index = 0
+        self.image = self.frames[0]
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = 4  # Pixels per frame
+        self.direction = -1 if target_x < x else 1  # Move toward player
+        self.update_time = pygame.time.get_ticks()
+        self.animation_cooldown = 100  # Faster animation for fireball
+        self.blocks = blocks
+        self.block_width = block_width
+        self.block_height = block_height
+        self.damage = 3  # Damage to player on hit
+    
+    def update(self, player):
+        # Animate
+        current_time = pygame.time.get_ticks()
+        if current_time - self.update_time > self.animation_cooldown:
+            self.update_time = current_time
+            self.frame_index = (self.frame_index + 1) % len(self.frames)
+            self.image = self.frames[self.frame_index]
+        
+        # Move horizontally
+        self.rect.x += self.direction * self.speed
+        
+        # Check block collision (despawn if hit solid block)
+        for block in self.blocks:
+            if block["type"] not in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"] and self.rect.colliderect(block["rect"]):
+                self.kill()  # Despawn
+                return
+        
+        # Check player collision (damage and despawn)
+        if player and self.rect.colliderect(player.rect):
+            player.get_damage(self.damage)
+            if hasattr(player, 'hit_flash'):
+                player.hit_flash = pygame.time.get_ticks()
+            self.kill()
+        
+        # Despawn if off-screen
+        if self.rect.right < 0 or self.rect.left > player.world_width if hasattr(player, 'world_width') else self.rect.left > 2000:
+            self.kill()
+    
+    def draw(self, surf, camera_x):
+        surf.blit(self.image, self.rect.move(camera_x, 0))
+
+class Boss(pygame.sprite.Sprite):
+    def __init__(self, x, y, animations, blocks, block_width, block_height, world_width):
+        super().__init__()
+        self.animations = animations
+        self.animator = BossAnimator(animations)
+        self.image = self.animator.get_current_image()
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+        # Physics: Lock to stationary (no movement or jumping)
+        self.vel_y = 0  # Start with 0, no gravity/jumping
+        self.gravity = 0.8  # Unused now, but keep for consistency
+        self.jump_speed = -18  # Unused now
+        self.on_ground = False  # Will be set True after find_ground
+
+        # Combat (unchanged)
+        self.health = 500
+        self.max_health = 500
+        self.attack_damage = 15
+        self.attack_cooldown = 1000  # 1s between attacks
+        self.last_attack = 0
+        self.is_dead = False
+        self.fireball_cooldown = 0
+        self.fireball_cd_time = 3000  # 3s between fireballs
+
+        # AI States: Simplified (no chase/jumping)
+        self.state = 'idle'  
+        self.last_state_change = 0
+        self.state_change_cooldown = 500  # For attack triggers
+
+        # World (unchanged, but bounds unused now)
+        self.blocks = blocks
+        self.block_width = block_width
+        self.block_height = block_height
+        self.world_width = world_width
+
+        # Masks (unchanged)
+        self.masks = {}
+        for anim_name, frames in animations.items():
+            if anim_name != 'fireball':
+                self.masks[anim_name] = [pygame.mask.from_surface(f) for f in frames]
+        self.current_mask = self.masks['idle'][0]
+
+        self.find_ground()
+        # CHANGE: Lock position after finding ground—no more physics
+        self.vel_y = 0
+        self.on_ground = True  # Stationary on ground forever
+
+    def find_ground(self):
+        # Unchanged: Find ground and set position
+        ground_y = self.rect.y + 500
+        for block in self.blocks:
+            if (block["type"] in ["grass", "magma_block"] and
+                abs(block["rect"].centerx - self.rect.centerx) < self.block_width * 10):
+                if block["rect"].top > self.rect.y:
+                    ground_y = min(ground_y, block["rect"].top)
+        self.rect.bottom = ground_y - 1  # On ground
+        # No vel_y or on_ground changes here—handled in __init__
+
+    def check_collision(self, dx, dy):
+        
+        temp_rect = self.rect.copy()
+        temp_rect.x += dx
+        temp_rect.y += dy
+        for block in self.blocks:
+            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
+                continue
+            if temp_rect.colliderect(block["rect"]):
+                return True
+        return False
+
+    def take_damage(self, damage):  # Unchanged
+        if not self.is_dead:
+            self.health -= damage
+            print(f"Boss took {damage} damage. New health: {self.health}/{self.max_health}")
+            if self.health <= 0:
+                self.health = 0
+                self.is_dead = True
+                self.animator.set_animation('dead')
+                print("Boss defeated!")
+
+    def attack_player(self, player):  # Unchanged
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_attack >= self.attack_cooldown and not self.is_dead:
+            player.get_damage(self.attack_damage)
+            if hasattr(player, 'hit_flash'):
+                player.hit_flash = pygame.time.get_ticks()
+            self.last_attack = current_time
+            print(f"Boss attacked player! Player health: {player.current_health}/{player.maximum_health}")
+            return True
+        return False
+
+    def shoot_fireball(self, player, fireball_group):
+        # Unchanged
+        current_time = pygame.time.get_ticks()
+        if current_time - self.fireball_cooldown >= self.fireball_cd_time and not self.is_dead:
+            # Play attack1 for ranged wind-up
+            if self.state != 'ranged':
+                self.state = 'ranged'
+                self.animator.set_animation('attack1')
+            
+            fireball_frames = self.animations['fireball']
+            fireball = Fireball(
+                self.rect.centerx, self.rect.centery,
+                player.rect.centerx, fireball_frames,
+                self.blocks, self.block_width, self.block_height
+            )
+            fireball_group.add(fireball)
+            self.fireball_cooldown = current_time
+            print("Boss shot fireball at 800px range!")
+            return True
+        return False
+
+    def update(self, player, fireball_group):
+        if self.is_dead:
+            # Unchanged: Play dead animation
+            self.animator.update()
+            self.image = self.animator.get_current_image()
+            state = self.animator.current_animation
+            if state in self.masks:
+                self.current_mask = self.masks[state][self.animator.current_frame]
+            return
+
+        if not player:
+            return
+
+        # Update animation (unchanged)
+        anim_finished = self.animator.update()
+        self.image = self.animator.get_current_image()
+        state = self.animator.current_animation
+        if state in self.masks:
+            self.current_mask = self.masks[state][self.animator.current_frame % len(self.masks[state])]
+
+        dist_x = abs(player.rect.centerx - self.rect.centerx)
+        dist_y = abs(player.rect.centery - self.rect.centery)
+        current_time = pygame.time.get_ticks()
+
+        # CHANGE: Early melee collision check (triggers on overlap, no movement)
+        if player and self.rect.colliderect(player.rect):
+            offset_x = player.rect.x - self.rect.x
+            offset_y = player.rect.y - self.rect.y
+            if (hasattr(player, 'mask') and player.mask and 
+                self.current_mask.overlap(player.mask, (offset_x, offset_y))):
+                # Collision: Force melee state
+                if self.state != 'melee':
+                    self.state = 'melee'
+                    self.animator.set_animation('attack2')
+                    self.last_state_change = current_time
+                self.attack_player(player)  # Deal damage
+                print("Boss melee collision! Attack2 triggered.")
+            # Update anim/mask again for melee (in case it changed)
+            anim_finished = self.animator.update()
+            self.image = self.animator.get_current_image()
+            state = self.animator.current_animation
+            if state in self.masks:
+                self.current_mask = self.masks[state][self.animator.current_frame % len(self.masks[state])]
+            # Reset after melee finishes
+            if anim_finished and self.state == 'melee':
+                self.state = 'idle'
+                self.animator.reset_to_idle()
+            return  # Exit early—melee handled
+
+        # CHANGE: Simplified AI State Machine (no chase/jumping, only ranged or idle)
+        # Only change state if cooldown allows and not in attack
+        if (current_time - self.last_state_change >= self.state_change_cooldown and 
+            self.state not in ['melee', 'ranged']):
+            if dist_x > 800:  # Too far: Idle
+                self.state = 'idle'
+                self.animator.reset_to_idle()
+            elif 400 < dist_x <= 800:  # Ranged: Fireball + attack1
+                self.state = 'ranged'
+                self.animator.set_animation('attack1')
+                self.shoot_fireball(player, fireball_group)  # Triggers at ~800px
+                # Face player during ranged
+                self.animator.facing_right = player.rect.centerx > self.rect.centerx
+            else:  # Close but no overlap: Idle (no chase)
+                self.state = 'idle'
+                self.animator.reset_to_idle()
+            self.last_state_change = current_time
+
+        # CHANGE: Handle non-looping anim finishes (reset to idle after ranged)
+        if anim_finished and self.state == 'ranged':
+            self.state = 'idle'
+            self.animator.reset_to_idle()
+
+        # CHANGE: NO PHYSICS OR MOVEMENT (removed gravity, vel_y, rect.x/y updates, bounds)
+
+    # draw_health_bar and draw methods unchanged...
+    def draw_health_bar(self, surf, camera_x):
+        if self.is_dead:
+            return
+        
+        bar_width = 100  
+        bar_height = 8
+        x = self.rect.centerx + camera_x - bar_width // 2
+        y = self.rect.top - 20
+        # Red background
+        pygame.draw.rect(surf, (255, 0, 0), (x, y, bar_width, bar_height))
+        # Green health
+        health_ratio = self.health / self.max_health
+        green_width = int(bar_width * health_ratio)
+        pygame.draw.rect(surf, (0, 255, 0), (x, y, green_width, bar_height))
+        # Border
+        pygame.draw.rect(surf, (255, 255, 255), (x, y, bar_width, bar_height), 2)
+    
+    def draw(self, surf, camera_x):
+        # Always draw the current image (including dead animation)
+        surf.blit(self.image, self.rect.move(camera_x, 0))
+        
+        # Only draw health bar if not dead
+        if not self.is_dead:
+            self.draw_health_bar(surf, camera_x)
 
 # =====PLAYER================================================================================================================= #
-class Playeronworld(Player):
-    def __init__(self, animation_list, blocks, block_width, block_height, world_width, parent):
-        super().__init__(animation_list)
+class Playeronworld(Player): #1
+    def __init__(self, base_animation_list, action_animation_list, gender, blocks, block_width, block_height, world_width, parent):
+        super().__init__(base_animation_list, action_animation_list, gender)
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
         self.parent = parent
-        self.health = 100
-        self.max_health = 100  # always good to have
-        self.heart_img = pygame.image.load("Map\\UI+LOGO\\health_heart.png").convert_alpha()
-        self.heart_img = pygame.transform.scale(self.heart_img, (20, 20))
         self.was_in_air = True       
-        self.last_step_time = 0 
-
-    # Damage Logic
-    def take_damage(self, amount):
-        self.health = max(0, self.health - amount)
-
-    # Healing Logic
-    def heal(self, amount):
-        self.health = min(self.max_health, self.health + amount)
-
+        self.last_step_time = 0
+        self.current_health = 100
+        self.maximum_health = 100
+        self.mask = None
+        self.hit_flash = 0
+    #======DamageLogic============#   
+    def get_damage(self, amt):
+        super().get_damage(amt)
+    #========HealthLogic===========#
+    def get_health(self, amt):
+        super().get_health(amt)  # Use PlayerV4's method
+    
+    @property
+    def health(self):
+        """Compatibility property"""
+        return self.current_health
+    
+    @health.setter 
+    def health(self, value):
+        """Compatibility property setter"""
+        self.current_health = max(0, min(self.maximum_health, value))
+    
     #======CollisionCheck=============#
     def check_collision(self, dx, dy):
         temp_hitbox = self.hitbox.copy()
         temp_hitbox.x += dx
         temp_hitbox.y += dy
         for block in self.blocks:
-            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top"]:
+            if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
                 continue
             if temp_hitbox.colliderect(block["rect"]):
                 return True
         return False
+    
+    # ==== NEW ENEMY ATTACK METHOD ==== #
+    def attack_enemies(self, enemy_group, boss_group=None):
+        """Attack nearby enemies or boss when player presses attack key"""
+        attack_range = 60  # Pixels
+        boss_attack_range = 150
+        attacked = False
+        
+        # Attack enemies (existing logic)
+        for enemy in enemy_group:
+            if not enemy.is_dead:
+                dx = enemy.rect.centerx - self.rect.centerx
+                dy = enemy.rect.centery - self.rect.centery
+                distance = (dx**2 + dy**2)**0.5
+                if distance <= attack_range:
+                    enemy.take_damage(100)  # Kill enemy
+                    attacked = True
+                    break  # One attack per frame
+        
+        # Attack boss if present and in range
+        if boss_group and not attacked:  # Only attack boss if no enemy was attacked
+            boss_list = boss_group.sprites()
+            if boss_list:
+                boss = boss_list[0]
+                if boss and not boss.is_dead:
+                    dx = boss.rect.centerx - self.rect.centerx
+                    dy = boss.rect.centery - self.rect.centery
+                    distance = (dx**2 + dy**2)**0.5
+                    if distance <= boss_attack_range:
+                        # Deal 10% of boss max health (500 * 0.1 = 50 damage)
+                        # Change to 500 for 100% damage (instant kill)
+                        boss.take_damage(100)  # 10% damage
+                        attacked = True
+                        print(f"Player attacked boss! Boss health: {boss.health}/{boss.max_health}")
+
+        return attacked
 
     #=============ConstantSids========================#
     def update(self):
         current_time = pygame.time.get_ticks()
+        
+        if self.is_performing_action:
+            if current_time - self.action_start_time >= self.action_duration:
+                self.is_performing_action = False
+                self.action = IDLE
+                self.frame = 0
+
+        # Animation update
         if current_time - self.last_update >= self.animation_cooldown:
             self.frame += 1
             self.last_update = current_time
-            if self.frame >= len(self.animation_list[self.action]):
+            if self.frame >= self.get_animation_length():
+                if self.is_performing_action:
+                    # For actions, stop the action when animation completes
+                    self.is_performing_action = False
+                    self.action = IDLE
                 self.frame = 0
 
-        self.image = self.animation_list[self.action][self.frame]
-        self.image = pygame.transform.scale(self.image, (self.image.get_width()*SCALE, self.image.get_height()*SCALE))
+        self.image = self.scale_current_image()
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
-        self.vel_y += self.gravity
 
-        if not self.check_collision(0, self.vel_y):
-            self.rect.y += self.vel_y
+        #Create/update mask for pixel-perfect collision
+        self.mask = pygame.mask.from_surface(self.image)
 
-        else:
-            if self.vel_y > 0:  
-                self.vel_y = 0
-                self.in_air = False
+        # Only apply physics if not performing an action
+        if not self.is_performing_action:
+            # Gravity with collision checking
+            self.vel_y += self.gravity
+            if not self.check_collision(0, self.vel_y):
+                self.rect.y += self.vel_y
+            else:
+                if self.vel_y > 0:  
+                    self.vel_y = 0
+                    self.in_air = False
+                elif self.vel_y < 0:  
+                    self.vel_y = 0
 
-            elif self.vel_y < 0:  
-                self.vel_y = 0
+        # Horizontal movement with collision checking
+            if not self.check_collision(self.vel_x, 0):
+                self.rect.x += self.vel_x
+            
+            # World bounds
+            if self.rect.left < 0:
+                self.rect.left = 0
+            if self.rect.right > self.world_width:
+                self.rect.right = self.world_width
 
-        if not self.check_collision(self.vel_x, 0):
-            self.rect.x += self.vel_x
+            self.hitbox.center = self.rect.center
+            self.hitbox = self.rect.inflate(-60, -10)
 
-        if self.rect.left < 0:
-            self.rect.left = 0
-
-        if self.rect.right > self.world_width:
-            self.rect.right = self.world_width
-
-        if self.rect.bottom > self.parent.screen.get_height():
-            self.rect.bottom = self.parent.screen.get_height()
-            self.vel_y = 0
-            self.in_air = False
-    #==== new_hitbox ===+=#
-        self.hitbox.center = self.rect.center
-        self.hitbox = self.rect.inflate(-60, -10)
-    # === sounds =====#
+    # === sounds ===
         if self.vel_x != 0 and not self.in_air:
             if current_time - self.last_step_time > 300:  
                 pygame.mixer.Channel(1).play(self.parent.sounds["footstep"])
@@ -106,36 +712,36 @@ class Playeronworld(Player):
 
     #=============Scenecam===============#
     def draw(self, surf, camera_x):
-        surf.blit(self.image, self.rect.move(camera_x, 0))
+        # NEW: Flash red if recently hit
+        if self.hit_flash and pygame.time.get_ticks() - self.hit_flash < 200:
+            flash_image = self.image.copy()
+            flash_image.fill((255, 0, 0, 128), special_flags=pygame.BLEND_RGBA_MULT)
+            surf.blit(flash_image, self.rect.move(camera_x, 0))
+        else:
+            surf.blit(self.image, self.rect.move(camera_x, 0))
     #============blithealth==================#
-    def draw_health_bar(self, surf, camera_x):
-        total_hearts = 10
-        heart_width = self.heart_img.get_width()
-        heart_height = self.heart_img.get_height()
+    def draw_health_bar(self, surf, camera_x, alpha=255):
+        bar_width = 100
+        bar_height = 6
+        x = self.rect.centerx + camera_x - bar_width//2
+        y = self.rect.top - 15
 
-        hearts_to_show = int(self.health / 10)
+        redback = pygame.Surface((bar_width, bar_height), pygame.SRCALPHA)
+        redback.fill((255, 0, 0, alpha))
+        surf.blit(redback, (x, y))
 
-        x_start = self.rect.centerx + camera_x - (heart_width * total_hearts) // 2
-        y = self.rect.top - 25  # above player
-
-        for i in range(total_hearts):
-            x = x_start + i * heart_width
-            if i < hearts_to_show:
-                # Full heart
-                surf.blit(self.heart_img, (x, y))
-            else:
-                # Greyed-out heart
-                grey_heart = self.heart_img.copy()
-                grey_heart.fill((100, 100, 100, 255), special_flags=pygame.BLEND_RGB_MULT)
-                surf.blit(grey_heart, (x, y))
-
+        green_width = int(bar_width * (self.health/100))
+        if green_width > 0:
+            greenback = pygame.Surface((green_width, bar_height), pygame.SRCALPHA)
+            greenback.fill((0, 255, 0, alpha))
+            surf.blit(greenback, (x, y))
 
 # =====WORLDGEN================================================================================================================= #
 class generateworld:
     def __init__(self, gender,pause_callback = None, volume =0.5, ):
         pygame.init()
         self.dimension = 'overworld'
-        self.volume =volume
+
         pygame.mixer.init() 
         self.pause_callback = pause_callback
 
@@ -235,6 +841,15 @@ class generateworld:
         self.highlight = False
         
         self.pause_callback = pause_callback
+        self.health_display_time = 3000  # 3 seconds in ms
+        self.last_health_change = 0      # Timer start (0 means no recent damage)
+        self.prev_player_health = self.player.current_health if self.player else 100  # Track previous health
+
+        self.current_scene = 0  
+        self.previous_scene = 0
+        self.highlight = False
+        
+        self.pause_callback = pause_callback
 
         # =====Inventory/Hotbar Setup========= #
         self.hotbar_slots = [
@@ -273,6 +888,11 @@ class generateworld:
   
         self.selected_index = 2 
 
+        # ==== NEW ENEMY SYSTEM ==== #
+        self.init_enemy_system()
+        self.boss_group = pygame.sprite.Group()  
+        self.fireball_group = pygame.sprite.Group()
+
         # ===== Crafting System ===== #
         self.show_crafting = False
         self.recipes = {
@@ -289,7 +909,10 @@ class generateworld:
 
 
         #=======Music=============#
-        
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")   
+        pygame.mixer.music.play(-1)
+        self.volume =volume
+        self.current_music = "overworld"
                 # ===== Sound Effects ===== #
         self.sounds = {
             "footstep": pygame.mixer.Sound("Map\\Sounds\\footstep_grass.mp3"),
@@ -321,19 +944,151 @@ class generateworld:
         pygame.display.update()
         time.sleep(duration)
 
+    def play_music(self):
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        pygame.mixer.music.set_volume(self.volume)
+        pygame.mixer.music.play(-1)
+    def update_music(self):
+        """Update background music based on dimension and current scene."""
+        current_time = pygame.time.get_ticks()  # Not strictly needed, but for future expansions
+        
+        # Boss music condition: Hell dimension AND last scene (boss area)
+        if self.dimension == "hell" and self.current_scene == self.number_levels - 1:
+            if self.current_music != "boss":
+                pygame.mixer.music.stop()  # Stop current music
+                pygame.mixer.music.load("Map\\MusicMan\\EpicBossFight.mp3")
+                pygame.mixer.music.set_volume(self.volume)
+                pygame.mixer.music.play(-1)  # Loop indefinitely
+                self.current_music = "boss"
+                print("Switched to Epic Boss Fight music!")  # Optional: For debugging
+        else:
+            # Default to overworld music (for overworld or non-boss hell scenes)
+            if self.current_music != "overworld":
+                pygame.mixer.music.stop()  # Stop current music
+                pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
+                pygame.mixer.music.set_volume(self.volume)
+                pygame.mixer.music.play(-1)
+                self.current_music = "overworld"
+                print("Switched back to overworld music!")  # Optional: For debugging
+
+
+    # ==== ENEMY INITIALIZATION ==== #
+    def init_enemy_system(self):
+        """Initialize enemy sprite sheet and enemy groups"""
+        try:
+            enemy_sheet_img = pygame.image.load("PlayerMovementPhysics/Sprite_Img/enemy_sprite.png").convert_alpha()
+        except pygame.error:
+            # Create placeholder sprite sheet if file doesn't exist
+            enemy_sheet_img = pygame.Surface((256, 32)).convert_alpha()
+            enemy_sheet_img.fill((255, 0, 0))  # Red placeholder
+        
+        self.enemy_sheet = SpriteSheet(enemy_sheet_img)
+        self.enemy_group = pygame.sprite.Group()
+        
+        # Ensure world is generated before spawning enemies
+        if len(self.blocks) > 0:
+            self.spawn_enemies()
     
+    def spawn_enemies(self):
+        """Spawn enemies in scenes 2 and 3 only"""
+        self.enemy_group.empty()  # Clear existing enemies
+        screen_width = self.screen.get_width()
+        
+        # Wait a moment to ensure blocks are fully generated
+        if len(self.blocks) == 0:
+            return
+        
+        # Spawn enemies only in scenes 2 & 3 (index 1 & 2)
+        for scene in [1, 2]:  # Scene indices 1 and 2 (scenes 2 and 3)
+            num_enemies = random.randint(2, 3)  # 2-3 enemies per scene
+            
+            for _ in range(num_enemies):
+                # Random x position within the scene
+                x = random.randint(scene * screen_width + 100, (scene + 1) * screen_width - 100)
+                
+                # Find grass blocks in this scene to determine spawn height
+                scene_grass_blocks = []
+                for block in self.blocks:
+                    if (block["type"] in ["grass", "magma_block"] and
+                        scene * screen_width <= block["rect"].centerx < (scene + 1) * screen_width):
+                        scene_grass_blocks.append(block)
+                
+                if scene_grass_blocks:
+                    # Find the grass block closest to our spawn x position
+                    closest_grass = min(scene_grass_blocks, 
+                                      key=lambda b: abs(b["rect"].centerx - x))
+                    y = closest_grass["rect"].top - 500  # Start 200 pixels above grass
+                else:
+                    # Fallback if no grass blocks found
+                    y = 100
+                
+                # Create enemy
+                enemy = Enemy(x, y, self.enemy_sheet, 2, self.blocks, 
+                             self.block_width, self.block_height)
+                self.enemy_group.add(enemy)
+
+    #===== BOSS INITIALIZE =====#
+    def init_boss_system(self, hell_mode=False):
+        """Initialize boss animations and spawn the boss in the last scene (hell only)."""
+        # Load boss animations once (scale=2 for visibility)
+        self.boss_animations = load_boss_animations(scale=2)
+
+        # Clear any existing boss/fireballs
+        self.boss_group.empty()
+        self.fireball_group.empty()
+
+        # Spawn boss only if in hell and world is generated
+        if hell_mode and len(self.blocks) > 0:
+            self.spawn_boss(hell_mode=True)
+
+
+    def spawn_boss(self, hell_mode=False):
+        """Spawn the boss in the last scene, at the far right (hell only)."""
+        if not hell_mode:
+            return  # Only spawn in hell
+
+        screen_width = self.screen.get_width()
+        last_scene_index = self.number_levels - 1
+        scene_start_x = last_scene_index * screen_width
+
+        # Boss spawn x: Far right of last scene (100px margin from edge)
+        boss_width = 128 * 2  # Scaled width from animations (128px * scale=2)
+        spawn_x = scene_start_x + screen_width - boss_width - 100  # Most right side
+
+        # Initial y: High up, will fall to ground via find_ground()
+        spawn_y = 200  # Arbitrary high position to trigger gravity drop
+
+        # Create boss with world data
+        world_width = screen_width * self.number_levels
+        boss = Boss(
+            spawn_x, spawn_y,
+            self.boss_animations,  # Loaded animations
+            self.blocks, self.block_width, self.block_height,
+            world_width  # For bounds checking
+        )
+        self.boss_group.add(boss)
+
+        print(f"Boss spawned at ({spawn_x}, {spawn_y}) in last hell scene {last_scene_index}")
+
 
     def init_player(self, gender):  # <-- accept gender as argument
         if gender == 'male':
-            sprite_path = os.path.join(project_root, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')
-            sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
+            base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')).convert_alpha()
+            attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_sprite_attack.png')).convert_alpha()
+            mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_sprite_mine.png')).convert_alpha()
+            action_sprite_width, action_sprite_height = 273, 182
+            action_scale_factor = 0.3
         else:
-            sprite_path = os.path.join(project_root, 'PlayerMovementPhysics', 'Sprite_Img', 'female_spriteV1_flipped.png')
-            sprite_sheet_image = pygame.image.load(sprite_path).convert_alpha()
-
-        animation_list = load_animations(sprite_sheet_image)
+            base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'female_spriteV1_flipped.png')).convert_alpha()
+            attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()
+            mine_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'female_sprite_attack.png')).convert_alpha()  # Using attack for mine if mine doesn't exist
+            action_sprite_width, action_sprite_height = 232, 182
+            action_scale_factor = 0.3
+        base_animation_list = load_base_animations(base_sprite_image)
+        action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image, 
+                                                     action_sprite_width, action_sprite_height, action_scale_factor)
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
-        self.player = Playeronworld(animation_list, self.blocks, self.block_width, self.block_height, world_width, self)
+        self.player = Playeronworld(base_animation_list, action_animation_list, gender, self.blocks, self.block_width, self.block_height, world_width,self)
         self.player.gender = gender 
         spawn_x = 300
         spawn_y = 300
@@ -516,8 +1271,7 @@ class generateworld:
             elif block["type"] in ["tree_log", "tree_stump"]:
                 color = (139, 100, 50)
             elif block["type"] == "tree_top":
-                color = (0, 150, 0)
-            
+                color = (0, 150, 0)           
             mx = block["rect"].x // self.block_width
             my = block["rect"].y // self.block_height
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
@@ -557,45 +1311,41 @@ class generateworld:
             self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
 
             # corrupt area around portal in block units
-            #self.corrupt_area(px, py, radius=15, seed=self.seed)
+            self.corrupt_area(px, py, radius=15, seed=self.seed)
 
-    def gen_hell(self, number_levels=5):
+    def gen_hell(self, number_levels=3):
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        pygame.mixer.music.set_volume(self.volume)
+        pygame.mixer.music.play(-1)
         self.blocks.clear()
+        pygame.m
         screen_width, screen_height = self.screen.get_size()
-        columns = screen_width // self.block_width
-        rows = screen_height // self.block_height
+        colums = screen_width // self.block_width
 
         # Hell background
         self.background = pygame.image.load("Map\\BACKGROUND\\hellgame1.gif").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
-
-        ground_height = rows // 4
-        surface_y = screen_height - (ground_height * self.block_height)
-
+        
+        height = 5
         for level in range(number_levels):
-            for x in range(columns):
-                for y in range(ground_height):
-                    y_px = screen_height - (y + 1) * self.block_height
-
-                    if y == ground_height - 1:
-                        blocktype = "hell_block"
-                    elif y == ground_height - 2:
-                        blocktype = "hell_block"
-                    elif y >= ground_height - 6:
-                        blocktype = "hell_block"
+            for x in range(colums):
+                surface_y = screen_height - (height * self.block_height)
+                for y in range(height):
+                    if y == height - 1:
+                        blocktype = "magma_block"
+                    elif y < height - 1 and random.random() < 0.05:
+                        blocktype = "lava_block"
                     else:
                         blocktype = "magma_block"
 
                     texture = self.blocklibrary[blocktype].copy()
-                    depth = (y_px - surface_y) // self.block_height
-                    if depth > 0:
-                        max_depth = 20
-                        factor = max(0, 1 - ((depth / max_depth) ** 2))
-                        texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
-
-                    rect = texture.get_rect(topleft=((x + level * columns) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
+                    # Random fire blocks on top of magma
+                    if blocktype == "magma_block" and random.random() < 0.08:
+                        fire_rect = self.blocklibrary['fire_block'].get_rect(topleft=(rect.x, rect.y - self.block_height))
+                        self.blocks.append({"type": "fire_block", "texture": self.blocklibrary['fire_block'], "rect": fire_rect})
                         
 
         # Build fullmap once for hell
@@ -688,7 +1438,6 @@ class generateworld:
             if item is None:
                 self.hotbar_slots[i] = (block_type, 1)
                 return
-    
     def consume_from_hotbar(self, item, amount):
         remaining = amount
         for i in range(len(self.hotbar_slots)):
@@ -705,7 +1454,7 @@ class generateworld:
                     self.hotbar_slots[i] = (slot_type, slot_count)
         consumed = amount - remaining
         return consumed
-         
+    
     # ===== Inventory/Hotbar Drawing =====
     def draw_inventory(self):
         inv_width = self.inventory_cols * self.inventory_slot_size + (self.inventory_cols - 1) * self.inventory_padding
@@ -917,6 +1666,7 @@ class generateworld:
         while running:
             current_time = pygame.time.get_ticks()
             camera_x = -(self.current_scene * screen_width)
+            self.update_music()
             if self.show_inventory:
                 self.handle_inventory_click()
                 
@@ -952,21 +1702,6 @@ class generateworld:
                         if event.key == pygame.K_m:
                             self.show_fullmap = not self.show_fullmap
 
-                    if self.player:
-                        if event.key == pygame.K_h:
-                            self.player.health = min(100, self.player.health+10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_j:
-                            self.player.health = max(0, self.player.health-10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_d:
-                            self.player.get_health(10)
-                            last_health_change = current_time
-                        if event.key == pygame.K_SPACE:
-                            self.player.get_damage(10)
-                            last_health_change = current_time
-                            #self.sounds["hurt"].play()
-
                     if pygame.K_1 <= event.key <= pygame.K_9:
                         self.selected_index = event.key - pygame.K_1
 
@@ -980,7 +1715,19 @@ class generateworld:
                                     self.loading_screen("Entering Hell...", 1.5)  # optional loading screen
                                     self.dimension = "hell"
                                     self.current_scene = 0
-                                    self.gen_hell(number_levels=5)
+                                    self.gen_hell(number_levels=self.number_levels)
+                                    self.dimension = "hell"
+                                    self.current_scene = 0
+                                    self.gen_hell(number_levels=self.number_levels)
+                                    self.enemy_group.empty()
+                                    self.spawn_enemies()
+                                    # Move player to hell spawn
+                                    self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
+                                    self.player.vel_x = 0
+                                    self.player.vel_y = 0
+                                    # NEW: Initialize boss system for hell only
+                                    self.init_boss_system(hell_mode=True)
+                                    self.current_music = "overworld" 
                                     # move player to hell spawn coordinates
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
@@ -990,6 +1737,23 @@ class generateworld:
                                     self.dimension = "overworld"
                                     self.current_scene = 0
                                     self.gen_world(number_levels=self.number_levels)
+                                    self.dimension = "overworld"
+                                    self.current_scene = 0
+                                    self.gen_world(number_levels=self.number_levels)
+                                    # Move player to overworld spawn
+                                    self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
+                                    self.player.vel_x = 0
+                                    self.player.vel_y = 0
+                                    self.enemy_group.empty()
+                                    self.spawn_enemies()
+                                    # NEW: Clear boss when leaving hell
+                                    self.boss_group.empty()
+                                    self.fireball_group.empty()
+                                    self.current_music = "overworld"  # Ensure overworld music plays
+                                    # In the update section, after updating fireballs:
+                                    for fireball in self.fireball_group.copy():
+                                        if not fireball.alive():  # Fireballs self-kill on collision
+                                            self.fireball_group.remove(fireball)
                                     # move player to overworld spawn
                                     self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
                                     self.player.vel_x = 0
@@ -1063,7 +1827,7 @@ class generateworld:
 
                                         bloktype = removed_block.get("type")
                                         added = False
-# Try to find existing slot
+
                                         for i, slot in enumerate(self.inventory_slots):
                                             if slot and slot[0] == bloktype:
                                                 self.inventory_slots[i] = (bloktype, slot[1]+1)
@@ -1144,8 +1908,52 @@ class generateworld:
                 left = keys[pygame.K_a] 
                 right = keys[pygame.K_d] 
                 jump = keys[pygame.K_SPACE] 
-                self.player.move(left, right, jump)
+                attack = keys[pygame.K_q]
+                mouse_button = pygame.mouse.get_pressed()
+                mine = mouse_button[0]
+                self.player.move(left, right, jump, attack, mine)
                 self.player.update()
+
+                # Update enemies in current and adjacent scenes (for performance)
+                screen_width = self.screen.get_width()
+                current_scene_start = self.current_scene * screen_width
+                current_scene_end = (self.current_scene + 1) * screen_width
+
+                for enemy in self.enemy_group:
+                    # Only update if enemy is in/near current scene (avoids updating off-screen enemies)
+                    if (enemy.rect.right > current_scene_start - 200 and 
+                        enemy.rect.left < current_scene_end + 200):
+                        enemy.update(self.player)
+
+                # ==== NEW: UPDATE BOSS AND FIREBALLS ==== #
+                last_scene_index = self.number_levels - 1
+                if abs(self.current_scene - last_scene_index) <= 1:  # Update in last scene or adjacent
+                    if self.boss_group:
+                        bosses = self.boss_group.sprites()  # <-- call the function
+                        for boss in bosses:
+                            boss.update(self.player, self.fireball_group)
+
+                    # Update fireballs (global, as they can cross scenes)
+                    for fireball in self.fireball_group:
+                        fireball.update(self.player)
+
+                # Remove dead fireballs
+                for fireball in self.fireball_group.copy():
+                    if not fireball.alive():  # Fireballs self-kill on collision
+                        self.fireball_group.remove(fireball)
+                
+                # ==== NEW: PLAYER ATTACK BOSS/ENEMIES ==== #
+                if attack and self.player.is_performing_action and self.player.action == ATTACK:
+                    # Add attack cooldown to prevent spam
+                    current_time = pygame.time.get_ticks()
+                    if not hasattr(self, 'last_player_attack'):
+                        self.last_player_attack = 0
+                    
+                    if current_time - self.last_player_attack >= 500:  # 0.5 second cooldown
+                        attacked = self.player.attack_enemies(self.enemy_group, self.boss_group)
+                        if attacked:
+                            self.last_player_attack = current_time
+
 
                 #=========Cameralogic=======
                 screen_width = self.screen.get_width()
@@ -1190,15 +1998,45 @@ class generateworld:
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
 
+            # ==== DRAW ENEMIES ==== #
+            # Only draw enemies in current scene or adjacent scenes for performance
+            current_scene_start = self.current_scene * screen_width
+            current_scene_end = (self.current_scene + 1) * screen_width
+            
+            for enemy in self.enemy_group:
+                # Check if enemy is in visible area (current scene +/- some margin)
+                if (enemy.rect.right > current_scene_start - 200 and 
+                    enemy.rect.left < current_scene_end + 200):
+                    enemy.draw(self.screen, camera_x)
+
+            # ==== NEW: DRAW BOSS AND FIREBALLS ==== #
+            if self.current_scene == last_scene_index or abs(self.current_scene - last_scene_index) <= 1:  # Visible in adjacent scenes
+                # Draw boss
+                for boss in self.boss_group:
+                    boss.draw(self.screen, camera_x)
+    
+                # Draw fireballs (with camera)
+                for fireball in self.fireball_group:
+                    # Only draw if in visible area
+                    if (fireball.rect.right > current_scene_start - 200 and 
+                        fireball.rect.left < current_scene_end + 200):
+                        fireball.draw(self.screen, camera_x)
+
             #==================Drawbar==========================#
             # Replace all the hotbar drawing code with just this line:
             self.draw_hotbar(self.screen, self.selected_index)
 
                 #===========Heathdissapearlogic============#
-            if self.player:
-                if current_time - last_health_change <= health_display_time:
-                    self.player.draw_health_bar(self.screen, camera_x)
-                self.player.draw(self.screen, camera_x)
+            should_show_health = (
+                current_time - self.last_health_change <= self.health_display_time or  # Recent change
+                self.player.current_health < self.player.maximum_health  # Not at full health
+            )
+            
+            if should_show_health:
+                self.player.draw_health_bar(self.screen, camera_x)
+            
+            # Always draw the player
+            self.player.draw(self.screen, camera_x)
 
            
             if self.show_crafting:
@@ -1329,6 +2167,10 @@ class generateworld:
                 px = int(self.player.rect.x / self.block_width * scale)
                 py = int(self.player.rect.y / self.block_height * scale)
                 pygame.draw.rect(self.screen, (255, 0, 0), (map_rect.left + px, map_rect.top + py, 6, 6))
+
+
+
+
 
 
             pygame.display.flip()

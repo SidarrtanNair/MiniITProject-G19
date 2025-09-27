@@ -1,7 +1,7 @@
 import pygame
 import random
 import os
-from .spritesheet import SpriteSheet  # Import the SpriteSheet class
+from spritesheet import SpriteSheet  # Import the SpriteSheet class
 
 # Initialize pygame
 pygame.init()

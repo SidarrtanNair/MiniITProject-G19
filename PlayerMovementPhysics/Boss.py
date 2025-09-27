@@ -1,7 +1,7 @@
 import pygame
 import sys
 import os
-from .spritesheet import SpriteSheet
+from spritesheet import SpriteSheet
 
 pygame.init()
 
