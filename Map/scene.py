@@ -14,34 +14,29 @@ from PlayerMovementPhysics.PlayerV3 import Player, load_animations, gender_selec
 from PlayerMovementPhysics.PlayerV3 import IDLE, WALK, JUMP ,SCALE
 
 # =====PLAYER================================================================================================================= #
-class Playeronworld(Player): #1
-    def __init__(self, animation_list, blocks, block_width, block_height, world_width,parent):
+class Playeronworld(Player):
+    def __init__(self, animation_list, blocks, block_width, block_height, world_width, parent):
         super().__init__(animation_list)
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
-        self.health = 100
         self.parent = parent
+        self.health = 100
+        self.max_health = 100  # always good to have
+        self.heart_img = pygame.image.load("Map\\UI+LOGO\\health_heart.png").convert_alpha()
+        self.heart_img = pygame.transform.scale(self.heart_img, (20, 20))
         self.was_in_air = True       
-        self.last_step_time = 0
-        
-    #======DamageLogic============#   
-    def get_damage(self, amount):
-        try:
-            self.health -= amount
-        except:
-            self.health = max(0, 0)
-        if self.health < 0:
-            self.health = 0
-    #========HealthLogic===========#
-    def get_health(self, amount):
-        try:
-            self.health += amount
-        except:
-            self.health = 0
-        if self.health > 100:
-            self.health = 100
+        self.last_step_time = 0 
+
+    # Damage Logic
+    def take_damage(self, amount):
+        self.health = max(0, self.health - amount)
+
+    # Healing Logic
+    def heal(self, amount):
+        self.health = min(self.max_health, self.health + amount)
+
     #======CollisionCheck=============#
     def check_collision(self, dx, dy):
         temp_hitbox = self.hitbox.copy()
@@ -113,21 +108,27 @@ class Playeronworld(Player): #1
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
     #============blithealth==================#
-    def draw_health_bar(self, surf, camera_x, alpha=255):
-        bar_width = 100
-        bar_height = 6
-        x = self.rect.centerx + camera_x - bar_width//2
-        y = self.rect.top - 15
+    def draw_health_bar(self, surf, camera_x):
+        total_hearts = 10
+        heart_width = self.heart_img.get_width()
+        heart_height = self.heart_img.get_height()
 
-        redback = pygame.Surface((bar_width, bar_height), pygame.SRCALPHA)
-        redback.fill((255, 0, 0, alpha))
-        surf.blit(redback, (x, y))
+        hearts_to_show = int(self.health / 10)
 
-        green_width = int(bar_width * (self.health/100))
-        if green_width > 0:
-            greenback = pygame.Surface((green_width, bar_height), pygame.SRCALPHA)
-            greenback.fill((0, 255, 0, alpha))
-            surf.blit(greenback, (x, y))
+        x_start = self.rect.centerx + camera_x - (heart_width * total_hearts) // 2
+        y = self.rect.top - 25  # above player
+
+        for i in range(total_hearts):
+            x = x_start + i * heart_width
+            if i < hearts_to_show:
+                # Full heart
+                surf.blit(self.heart_img, (x, y))
+            else:
+                # Greyed-out heart
+                grey_heart = self.heart_img.copy()
+                grey_heart.fill((100, 100, 100, 255), special_flags=pygame.BLEND_RGB_MULT)
+                surf.blit(grey_heart, (x, y))
+
 
 # =====WORLDGEN================================================================================================================= #
 class generateworld:
@@ -900,7 +901,7 @@ class generateworld:
                 portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
 
             self.show_dialogue(
-                "Where tf am I, better get back through that portal, I have an assignment to finish!",
+                "Where tf am I, better get back through that portal, I have an assignment to do!",
                 portrait_img=portrait_img,
             )
             pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
