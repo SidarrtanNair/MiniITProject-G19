@@ -1,5 +1,5 @@
 import pygame
-import spritesheet 
+from .spritesheet import SpriteSheet
 import os
 import sys
 
@@ -15,19 +15,17 @@ SCREEN_WIDTH, SCREEN_HEIGHT = infoObject.current_w, infoObject.current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption('2D Character Animation with Movement')
 
-background = pygame.image.load("Map\BACKGROUND\sforest.png")
+background = pygame.image.load("Map\\BACKGROUND\\sforest.png")
 background = pygame.transform.scale(background,(1920,1080))
-BLACK = (0, 0, 0)
 
 BLACK = (0, 0, 0)
 BG = (50, 50, 50)
 WHITE = (255, 255, 255)
 FPS = 60
 
-# Animation frames count for base animations
-base_animation_steps = [6, 8, 6, 5]  # idle, walk right, jump, etc.
-# Animation frames count for action animations (attack, mine)
-action_animation_steps = [6, 6]  # attack, mine - adjust these based on your actual sprite frames
+# Animation frames
+base_animation_steps = [6, 8, 6, 5]  # idle, walk, jump, etc.
+action_animation_steps = [6, 6]  # attack, mine
 
 SCALE = 3
 
@@ -41,13 +39,14 @@ MINE = 4
 clock = pygame.time.Clock()
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
+# --- ANIMATION LOADING ---
 def load_base_animations(sprite_sheet_image):
-    sprite_sheet = spritesheet.SpriteSheet(sprite_sheet_image)
+    sprite_sheet = SpriteSheet(sprite_sheet_image)
     animation_list = []
     step_counter = 0
     for animation_len in base_animation_steps:
         temp_img_list = []
-        for _ in range(animation_len): 
+        for _ in range(animation_len):
             temp_img_list.append(sprite_sheet.get_image(step_counter, 104, 104, 0.3, 'black'))
             step_counter += 1
         animation_list.append(temp_img_list)
@@ -55,25 +54,19 @@ def load_base_animations(sprite_sheet_image):
 
 def load_action_animations(attack_image, mine_image, sprite_width, sprite_height, scale_factor):
     action_animations = []
-    
-    # Load attack animation
-    attack_sheet = spritesheet.SpriteSheet(attack_image)
-    attack_frames = []
-    for i in range(action_animation_steps[0]):  # attack frames
-        frame = attack_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
-        attack_frames.append(frame)
+    # Attack
+    attack_sheet =SpriteSheet(attack_image)
+    attack_frames = [attack_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black') 
+                     for i in range(action_animation_steps[0])]
     action_animations.append(attack_frames)
-    
-    # Load mine animation
-    mine_sheet = spritesheet.SpriteSheet(mine_image)
-    mine_frames = []
-    for i in range(action_animation_steps[1]):  # mine frames
-        frame = mine_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black')
-        mine_frames.append(frame)
+    # Mine
+    mine_sheet = SpriteSheet(mine_image)
+    mine_frames = [mine_sheet.get_image(i, sprite_width, sprite_height, scale_factor, 'black') 
+                   for i in range(action_animation_steps[1])]
     action_animations.append(mine_frames)
-    
     return action_animations
 
+# --- PLAYER CLASS ---
 class Player:
     def __init__(self, base_animation_list, action_animation_list, gender):
         self.base_animation_list = base_animation_list
@@ -82,22 +75,22 @@ class Player:
         self.action = IDLE
         self.frame = 0
         self.flip = False
+        self.hit_flash = 0
 
-        # Reference position for bottom-left (prevents blit shift)
+        # Reference position (fixed feet position)
         self.pos = pygame.math.Vector2(50, SCREEN_HEIGHT - 50)
+        self.ground_y = SCREEN_HEIGHT - 50
 
         # Action state
         self.is_performing_action = False
         self.action_start_time = 0
-        self.action_duration = 1000  # 1 sec
+        self.action_duration = 1000
 
         # Initial image
         self.image = self.get_current_frame()
         self.image = self.scale_current_image()
         self.rect = self.image.get_rect()
         self.rect.bottomleft = self.pos
-
-        # Hitbox
         self.hitbox = self.rect.inflate(-60, -10)
 
         # Physics
@@ -117,18 +110,17 @@ class Player:
         self.last_update = pygame.time.get_ticks()
         self.animation_cooldown = 150
 
+    # --- FRAME FUNCTIONS ---
     def get_current_frame(self):
         if self.action in [ATTACK, MINE]:
-            index = self.action - ATTACK
-            return self.action_animation_list[index][self.frame]
+            return self.action_animation_list[self.action - ATTACK][self.frame]
         return self.base_animation_list[self.action][self.frame]
 
     def scale_current_image(self):
         img = self.get_current_frame()
         if self.action in [ATTACK, MINE]:
             scale_factor = 2.0 if self.gender == 'male' else 2.2
-            img = pygame.transform.scale(img, 
-                (int(img.get_width()*scale_factor), int(img.get_height()*scale_factor)))
+            img = pygame.transform.scale(img, (int(img.get_width()*scale_factor), int(img.get_height()*scale_factor)))
         else:
             img = pygame.transform.scale(img, (img.get_width()*SCALE, img.get_height()*SCALE))
         return img
@@ -138,47 +130,31 @@ class Player:
             return len(self.action_animation_list[self.action - ATTACK])
         return len(self.base_animation_list[self.action])
 
+    # --- ACTIONS ---
     def perform_action(self, action_type):
         if not self.is_performing_action and not self.in_air:
-            self.action = action_type
-            self.frame = 0
-            self.is_performing_action = True
-            self.action_start_time = pygame.time.get_ticks()
+            self.action = action_type          # Set action to ATTACK or MINE
+            self.frame = 0                      # Start from first frame
+            self.is_performing_action = True    # Flag that an action is ongoing
+            self.action_start_time = pygame.time.get_ticks()  # Timestamp to track duration
 
-    # Health
-    def take_damage(self, amount):
-        self.health = max(0, self.health - amount)
+        # --- HEALTH ---
+    def get_damage(self, amount):
+        self.current_health = max(self.current_health - amount, 0)
+    def get_health(self, amount):
+        self.current_health = min(self.current_health + amount, self.maximum_health)
+    def draw_health_bar(self, surf):
+        x = self.rect.centerx - self.health_bar_length//2
+        y = self.rect.top - 15
+        pygame.draw.rect(surf, (60,60,60), (x,y,self.health_bar_length,10))
+        pygame.draw.rect(surf, (255,0,0), (x,y,self.current_health/self.health_ratio,10))
+        pygame.draw.rect(surf, (255,255,255), (x,y,self.health_bar_length,2))
 
-    # Healing Logic
-    def heal(self, amount):
-        self.health = min(self.max_health, self.health + amount)
-    def draw_health_bar(self, surf, camera_x):
-        total_hearts = 10
-        heart_width = self.heart_img.get_width()
-        heart_height = self.heart_img.get_height()
-
-        hearts_to_show = int(self.health / 10)
-
-        x_start = self.rect.centerx + camera_x - (heart_width * total_hearts) // 2
-        y = self.rect.top - 25  # above player
-
-        for i in range(total_hearts):
-            x = x_start + i * heart_width
-            if i < hearts_to_show:
-                # Full heart
-                surf.blit(self.heart_img, (x, y))
-            else:
-                # Greyed-out heart
-                grey_heart = self.heart_img.copy()
-                grey_heart.fill((100, 100, 100, 255), special_flags=pygame.BLEND_RGB_MULT)
-                surf.blit(grey_heart, (x, y))
-
-
-    # Movement & Animation
+    # --- UPDATE ---
     def update(self):
-        # End action if duration exceeded
+        # End action if frame exceeds animation length
         if self.is_performing_action:
-            if pygame.time.get_ticks() - self.action_start_time >= self.action_duration:
+            if self.frame >= self.get_animation_length() - 1:
                 self.is_performing_action = False
                 self.action = IDLE
                 self.frame = 0
@@ -190,36 +166,37 @@ class Player:
             self.last_update = now
             if self.frame >= self.get_animation_length():
                 self.frame = 0
-                if self.is_performing_action:
-                    self.is_performing_action = False
-                    self.action = IDLE
 
-        # Update image and rect using consistent bottom-left position
+        # Image scaling
         self.image = self.scale_current_image()
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
 
+        # Align bottom to ground
         self.rect = self.image.get_rect()
-        self.rect.bottomleft = self.pos
+        self.rect.bottom = self.ground_y
+        self.rect.x = self.pos.x
 
         # Physics (if not performing action)
         if not self.is_performing_action:
             self.vel_y += self.gravity
             self.pos.y += self.vel_y
-            if self.pos.y >= SCREEN_HEIGHT - 50:
-                self.pos.y = SCREEN_HEIGHT - 50
+            if self.pos.y >= self.ground_y:
+                self.pos.y = self.ground_y
                 self.vel_y = 0
                 self.in_air = False
 
-            self.pos.x += self.vel_x
-            if self.pos.x < 0: self.pos.x = 0
-            if self.pos.x + self.rect.width > SCREEN_WIDTH:
-                self.pos.x = SCREEN_WIDTH - self.rect.width
+        # Horizontal movement
+        self.pos.x += self.vel_x
+        if self.pos.x < 0: self.pos.x = 0
+        if self.pos.x + self.rect.width > SCREEN_WIDTH:
+            self.pos.x = SCREEN_WIDTH - self.rect.width
 
-        # Update hitbox
-        self.rect.bottomleft = self.pos
+        # Update rect & hitbox
+        self.rect.bottom = self.pos.y
         self.hitbox = self.rect.inflate(-60, -10)
 
+    # --- MOVEMENT ---
     def move(self, left, right, jump, attack=False, mine=False):
         if attack:
             self.perform_action(ATTACK)
@@ -254,25 +231,53 @@ class Player:
         surf.blit(self.image, self.rect)
         self.draw_health_bar(surf)
 
-
 # --- GENDER SELECTION SCREEN ---
 def gender_selection_screen():
     font = pygame.font.SysFont(None, 60)
     small_font = pygame.font.SysFont(None, 40)
-
     selecting = True
     selected_gender = None
 
-    while selecting:
-        screen.blit(background,(0,0))
-        
-        title_text = font.render("Select Your Character Gender", True, 'white')
-        male_text = small_font.render("Press M for Male", True, 'white')
-        female_text = small_font.render("Press F for Female", True, 'white')
+    male_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
+    female_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
 
-        screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, SCREEN_HEIGHT//3))
-        screen.blit(male_text, (SCREEN_WIDTH//2 - male_text.get_width()//2, SCREEN_HEIGHT//2))
-        screen.blit(female_text, (SCREEN_WIDTH//2 - female_text.get_width()//2, SCREEN_HEIGHT//2 + 50))
+    max_width = SCREEN_WIDTH // 6
+    max_height = SCREEN_HEIGHT // 3
+
+    def scale_proportional(img, max_w, max_h):
+        w,h = img.get_size()
+        scale = min(max_w/w, max_h/h,1)
+        return pygame.transform.smoothscale(img,(int(w*scale), int(h*scale)))
+
+    male_img = scale_proportional(male_img, max_width, max_height)
+    female_img = scale_proportional(female_img, max_width, max_height)
+
+    margin = SCREEN_WIDTH // 6
+    male_pos = (margin, SCREEN_HEIGHT // 3)
+    female_pos = (SCREEN_WIDTH - margin - female_img.get_width(), SCREEN_HEIGHT // 3)
+
+    male_rect = pygame.Rect(male_pos, (male_img.get_width(), male_img.get_height()))
+    female_rect = pygame.Rect(female_pos, (female_img.get_width(), female_img.get_height()))
+
+    bg_image = pygame.image.load("Map\\BACKGROUND\\genderbg1.png").convert()
+    bg_image = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    while selecting:
+        screen.blit(bg_image, (0,0))
+        title_text = font.render("Select Your Character Gender", True, 'white')
+        screen.blit(title_text,(SCREEN_WIDTH//2 - title_text.get_width()//2,50))
+
+        screen.blit(male_img, male_pos)
+        screen.blit(female_img, female_pos)
+
+        male_text = small_font.render("Male", True, 'white')
+        female_text = small_font.render("Female", True, 'white')
+        screen.blit(male_text,(male_pos[0]+male_img.get_width()//2 - male_text.get_width()//2,
+                               male_pos[1]+male_img.get_height()+10))
+        screen.blit(female_text,(female_pos[0]+female_img.get_width()//2 - female_text.get_width()//2,
+                                 female_pos[1]+female_img.get_height()+10))
+        instr_text = small_font.render("Click a portrait or press M/F to select", True, 'yellow')
+        screen.blit(instr_text,(SCREEN_WIDTH//2 - instr_text.get_width()//2, SCREEN_HEIGHT-100))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -285,41 +290,32 @@ def gender_selection_screen():
                 elif event.key == pygame.K_f:
                     selected_gender = 'female'
                     selecting = False
-                elif event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
-
+            
         pygame.display.update()
         clock.tick(FPS)
 
     return selected_gender
 
-# --- MAIN LOOP ---
+# --- MAIN ---
 def main():
     gender = gender_selection_screen()
-    
-    # Load base sprites
-    if gender == 'male':
+
+    if gender=='male':
         base_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/male_spriteV8_flipped.png')).convert_alpha()
         attack_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/male_sprite_attack.png')).convert_alpha()
         mine_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/male_sprite_mine.png')).convert_alpha()
-        action_sprite_width, action_sprite_height = 273, 182
-        action_scale_factor = 0.3
+        action_width, action_height = 273,182
     else:
         base_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_spriteV1_flipped.png')).convert_alpha()
         attack_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_sprite_attack.png')).convert_alpha()
         mine_sprite_image = pygame.image.load(os.path.join(script_dir,'Sprite_Img/female_sprite_mine.png')).convert_alpha()
-        action_sprite_width, action_sprite_height = 232, 182
-        action_scale_factor = 0.3
+        action_width, action_height = 232,182
 
-    # Load animations
     base_animation_list = load_base_animations(base_sprite_image)
-    action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image, 
-                                                 action_sprite_width, action_sprite_height, action_scale_factor)
-    
+    action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image,
+                                                   action_width, action_height, 0.3)
+
     player = Player(base_animation_list, action_animation_list, gender)
-
-
 
     run = True
     while run:
@@ -331,7 +327,7 @@ def main():
         attack = keys[pygame.K_1]
         mine = keys[pygame.K_2]
 
-        # Test health bar keys
+        # Test health bar
         if keys[pygame.K_UP]:
             player.get_health(50)
         if keys[pygame.K_DOWN]:
@@ -343,17 +339,13 @@ def main():
         screen.fill(BG)
         player.draw(screen)
 
-        
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    run = False
+            if event.type==pygame.QUIT or (event.type==pygame.KEYDOWN and event.key==pygame.K_ESCAPE):
+                run=False
 
         pygame.display.update()
 
     pygame.quit()
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

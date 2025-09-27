@@ -10,8 +10,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Now import from PlayerMovementPhysics
-from PlayerMovementPhysics.PlayerV3 import Player, load_animations, gender_selection_screen
-from PlayerMovementPhysics.PlayerV3 import IDLE, WALK, JUMP ,SCALE
+from PlayerMovementPhysics.PlayerV4 import Player, load_animations, gender_selection_screen
+from PlayerMovementPhysics.PlayerV4 import IDLE, WALK, JUMP ,SCALE
 
 # =====PLAYER================================================================================================================= #
 class Playeronworld(Player):
@@ -1329,10 +1329,6 @@ class generateworld:
                 px = int(self.player.rect.x / self.block_width * scale)
                 py = int(self.player.rect.y / self.block_height * scale)
                 pygame.draw.rect(self.screen, (255, 0, 0), (map_rect.left + px, map_rect.top + py, 6, 6))
-
-
-
-
 
 
             pygame.display.flip()

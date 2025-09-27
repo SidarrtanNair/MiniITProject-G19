@@ -570,29 +570,26 @@ class Playeronworld(Player): #1
         self.block_height = block_height
         self.world_width = world_width
         self.parent = parent
-        self.was_in_air = True       
+        self.was_in_air = True
         self.last_step_time = 0
         self.current_health = 100
         self.maximum_health = 100
         self.mask = None
         self.hit_flash = 0
+        self.hitbox = self.rect.inflate(-60, -10)
     #======DamageLogic============#   
     def get_damage(self, amt):
         super().get_damage(amt)
     #========HealthLogic===========#
     def get_health(self, amt):
-        super().get_health(amt)  # Use PlayerV4's method
+        super().get_health(amt)
     
     @property
     def health(self):
-        """Compatibility property"""
         return self.current_health
-    
     @health.setter 
     def health(self, value):
-        """Compatibility property setter"""
         self.current_health = max(0, min(self.maximum_health, value))
-    
     #======CollisionCheck=============#
     def check_collision(self, dx, dy):
         temp_hitbox = self.hitbox.copy()
@@ -607,7 +604,6 @@ class Playeronworld(Player): #1
     
     # ==== NEW ENEMY ATTACK METHOD ==== #
     def attack_enemies(self, enemy_group, boss_group=None):
-        """Attack nearby enemies or boss when player presses attack key"""
         attack_range = 60  # Pixels
         boss_attack_range = 150
         attacked = False
@@ -655,26 +651,19 @@ class Playeronworld(Player): #1
         if current_time - self.last_update >= self.animation_cooldown:
             self.frame += 1
             self.last_update = current_time
-            
-            # Check if we've reached the end of the current animation
             if self.frame >= self.get_animation_length():
                 if self.is_performing_action:
-                    # For actions, stop the action when animation completes
                     self.is_performing_action = False
                     self.action = IDLE
                 self.frame = 0
 
-        # Get and scale the current image
         self.image = self.scale_current_image()
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
         
-        #Create/update mask for pixel-perfect collision
         self.mask = pygame.mask.from_surface(self.image)
 
-        # Only apply physics if not performing an action
         if not self.is_performing_action:
-            # Gravity with collision checking
             self.vel_y += self.gravity
             if not self.check_collision(0, self.vel_y):
                 self.rect.y += self.vel_y
@@ -713,7 +702,6 @@ class Playeronworld(Player): #1
 
     #=============Scenecam===============#
     def draw(self, surf, camera_x):
-        # NEW: Flash red if recently hit
         if self.hit_flash and pygame.time.get_ticks() - self.hit_flash < 200:
             flash_image = self.image.copy()
             flash_image.fill((255, 0, 0, 128), special_flags=pygame.BLEND_RGBA_MULT)
@@ -888,14 +876,9 @@ class generateworld:
         self.dragging_slot = None
   
         self.selected_index = 2 
-
-        # ==== NEW ENEMY SYSTEM ==== #
         self.init_enemy_system()
         self.boss_group = pygame.sprite.Group()  
         self.fireball_group = pygame.sprite.Group()  
-        
-        
-
         # ===== Crafting System ===== #
         self.show_crafting = False
         self.recipes = {
@@ -949,7 +932,6 @@ class generateworld:
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
-
     def update_music(self):
         """Update background music based on dimension and current scene."""
         current_time = pygame.time.get_ticks()  # Not strictly needed, but for future expansions
@@ -975,6 +957,77 @@ class generateworld:
 
 
     # ==== ENEMY INITIALIZATION ==== #
+    def show_dialogue(self, text, portrait_img=None, text_sound = None):
+        pygame.mixer.music.stop()
+        font = pygame.font.SysFont("Consolas", 24)
+        line_spacing = 30
+        text_color = (255, 255, 255)
+        type_speed = 40
+
+        portrait_offset_x = 0
+        if portrait_img:
+            max_height = 100
+            scale = min(max_height / portrait_img.get_height(), 1)
+            portrait_img = pygame.transform.smoothscale(
+                portrait_img,
+                (int(portrait_img.get_width() * scale), int(portrait_img.get_height() * scale))
+            )
+            portrait_offset_x = portrait_img.get_width() + 10
+
+        rendered_text = [char for char in text]
+        current_index = 0
+        last_update = pygame.time.get_ticks()
+        waiting_for_click = True
+
+        box_width = 500
+        box_height = 100
+        box_x = (self.screen.get_width() - box_width) // 2
+        box_y = self.screen.get_height() - box_height - 20
+
+        while waiting_for_click:
+            
+            box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            box_surf.fill((0, 0, 0, 200))
+            pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
+            self.screen.blit(box_surf, (box_x, box_y))
+
+            if portrait_img:
+                self.screen.blit(portrait_img, (box_x + 10, box_y + box_height - portrait_img.get_height() - 10))
+
+            now = pygame.time.get_ticks()
+            if current_index < len(rendered_text) and now - last_update > type_speed:
+                current_index += 1
+                last_update = now
+
+            words = "".join(rendered_text[:current_index]).split(" ")
+            lines = []
+            line = ""
+            for word in words:
+                test_line = line + word + " "
+                if font.size(test_line)[0] > box_width - portrait_offset_x - 20:
+                    lines.append(line)
+                    line = word + " "
+                else:
+                    line = test_line
+            lines.append(line)
+
+            for i, line in enumerate(lines):
+                text_surf = font.render(line, True, text_color)
+                self.screen.blit(text_surf, (box_x + portrait_offset_x + 10, box_y + 10 + i * line_spacing))
+
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                    if current_index >= len(rendered_text):
+                        waiting_for_click = False
+                    else:
+                        current_index = len(rendered_text)
+
+            self.clock.tick(60)
     def init_enemy_system(self):
         """Initialize enemy sprite sheet and enemy groups"""
         try:
@@ -1589,6 +1642,19 @@ class generateworld:
                 
 
     def run(self):
+        if self.player:
+            if self.player.gender == "male":
+                portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
+            else:
+                portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
+
+            self.show_dialogue(
+                "Where tf am I, better get back through that portal, I have an assignment to do!",
+                portrait_img=portrait_img,
+            )
+            pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+            pygame.mixer.music.set_volume(self.volume)
+            pygame.mixer.music.play(-1)
         running = True
         radius = 7 * self.block_width 
         health_display_time = 3000  
@@ -1657,10 +1723,9 @@ class generateworld:
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
                                     self.player.vel_y = 0
-                                    # NEW: Initialize boss system for hell only
+                                    
                                     self.init_boss_system(hell_mode=True)
-                                    self.current_music = "overworld"  # Reset to trigger switch in update_music()
-                                    # move player to hell spawn coordinates
+                                    self.current_music = "overworld"  
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
                                     self.player.vel_y = 0
@@ -1929,7 +1994,6 @@ class generateworld:
                 gx = ((mx - camera_x)//self.block_width)*self.block_width + camera_x
                 gy = (my//self.block_height)*self.block_height
                 pygame.draw.rect(self.screen,(186,142,35),(gx,gy,self.block_width,self.block_height),2)
-
             # ==== DRAW ENEMIES ==== #
             # Only draw enemies in current scene or adjacent scenes for performance
             current_scene_start = self.current_scene * screen_width
