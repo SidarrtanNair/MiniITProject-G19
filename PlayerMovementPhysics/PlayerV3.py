@@ -81,19 +81,26 @@ class Player:
         self.gender = gender
         self.action = IDLE
         self.frame = 0
-        self.flip = False  # Used to flip image for left movement
-        
-        # Action state tracking
+        self.flip = False
+
+        # Reference position for bottom-left (prevents blit shift)
+        self.pos = pygame.math.Vector2(50, SCREEN_HEIGHT - 50)
+
+        # Action state
         self.is_performing_action = False
         self.action_start_time = 0
-        self.action_duration = 1000  # 1 second action duration
-        
+        self.action_duration = 1000  # 1 sec
+
+        # Initial image
         self.image = self.get_current_frame()
         self.image = self.scale_current_image()
         self.rect = self.image.get_rect()
-        self.rect.bottomleft = (50, SCREEN_HEIGHT - 50)
+        self.rect.bottomleft = self.pos
+
+        # Hitbox
         self.hitbox = self.rect.inflate(-60, -10)
 
+        # Physics
         self.vel_x = 0
         self.vel_y = 0
         self.speed = 7
@@ -101,146 +108,125 @@ class Player:
         self.jump_speed = -12
         self.in_air = False
 
-        # --- HEALTH BAR ---
+        # Health
         self.current_health = 200
         self.maximum_health = 1000
-        self.health_bar_length = 100  # smaller for above player
+        self.health_bar_length = 100
         self.health_ratio = self.maximum_health / self.health_bar_length
 
         self.last_update = pygame.time.get_ticks()
         self.animation_cooldown = 150
 
     def get_current_frame(self):
-        """Get the current frame based on action state."""
         if self.action in [ATTACK, MINE]:
-            action_index = self.action - ATTACK  # Convert to action animation index
-            if action_index < len(self.action_animation_list):
-                return self.action_animation_list[action_index][self.frame]
-        
-        # Default to base animations
-        if self.action < len(self.base_animation_list):
-            return self.base_animation_list[self.action][self.frame]
-        
-        # Fallback to idle
-        return self.base_animation_list[IDLE][0]
+            index = self.action - ATTACK
+            return self.action_animation_list[index][self.frame]
+        return self.base_animation_list[self.action][self.frame]
 
     def scale_current_image(self):
-        """Scale the current image appropriately."""
-        image = self.get_current_frame()
-        
-        # Different scaling for action sprites due to different pixel dimensions
+        img = self.get_current_frame()
         if self.action in [ATTACK, MINE]:
-            # Action sprites have different dimensions, so we scale them differently
-            if self.gender == 'male':
-                # Male action sprites are 273x182, scale to match base sprite size
-                scale_factor = 2.0  # Adjust this to match your desired size
-            else:
-                # Female action sprites are 232x182, scale to match base sprite size  
-                scale_factor = 2.2  # Adjust this to match your desired size
-            
-            scaled_image = pygame.transform.scale(image, 
-                (int(image.get_width() * scale_factor), int(image.get_height() * scale_factor)))
+            scale_factor = 2.0 if self.gender == 'male' else 2.2
+            img = pygame.transform.scale(img, 
+                (int(img.get_width()*scale_factor), int(img.get_height()*scale_factor)))
         else:
-            # Base sprites use the original scaling
-            scaled_image = pygame.transform.scale(image, 
-                (image.get_width() * SCALE, image.get_height() * SCALE))
-        
-        return scaled_image
+            img = pygame.transform.scale(img, (img.get_width()*SCALE, img.get_height()*SCALE))
+        return img
 
     def get_animation_length(self):
-        """Get the length of the current animation."""
         if self.action in [ATTACK, MINE]:
-            action_index = self.action - ATTACK
-            return len(self.action_animation_list[action_index])
-        else:
-            return len(self.base_animation_list[self.action])
+            return len(self.action_animation_list[self.action - ATTACK])
+        return len(self.base_animation_list[self.action])
 
     def perform_action(self, action_type):
-        """Start performing an action (attack or mine)."""
-        if not self.is_performing_action and not self.in_air:  # Can't perform actions while jumping
+        if not self.is_performing_action and not self.in_air:
             self.action = action_type
             self.frame = 0
             self.is_performing_action = True
             self.action_start_time = pygame.time.get_ticks()
 
-    # --- HEALTH FUNCTIONS ---
-    def get_damage(self, amount):
-        if self.current_health > 0:
-            self.current_health -= amount
-        if self.current_health <= 0:
-            self.current_health = 0
+    # Health
+    def take_damage(self, amount):
+        self.health = max(0, self.health - amount)
 
-    def get_health(self, amount):
-        if self.current_health < self.maximum_health:
-            self.current_health += amount
-        if self.current_health >= self.maximum_health:
-            self.current_health = self.maximum_health
+    # Healing Logic
+    def heal(self, amount):
+        self.health = min(self.max_health, self.health + amount)
+    def draw_health_bar(self, surf, camera_x):
+        total_hearts = 10
+        heart_width = self.heart_img.get_width()
+        heart_height = self.heart_img.get_height()
 
-    def draw_health_bar(self, surf):
-        # Draw health bar above player
-        x = self.rect.centerx - self.health_bar_length//2
-        y = self.rect.top - 15
-        pygame.draw.rect(surf, (60, 60, 60), (x, y, self.health_bar_length, 10))
-        pygame.draw.rect(surf, (255, 0, 0), (x, y, self.current_health/self.health_ratio, 10))
-        pygame.draw.rect(surf, (255, 255, 255), (x, y, self.health_bar_length, 2))
+        hearts_to_show = int(self.health / 10)
 
-    # --- MOVEMENT & ANIMATION ---
+        x_start = self.rect.centerx + camera_x - (heart_width * total_hearts) // 2
+        y = self.rect.top - 25  # above player
+
+        for i in range(total_hearts):
+            x = x_start + i * heart_width
+            if i < hearts_to_show:
+                # Full heart
+                surf.blit(self.heart_img, (x, y))
+            else:
+                # Greyed-out heart
+                grey_heart = self.heart_img.copy()
+                grey_heart.fill((100, 100, 100, 255), special_flags=pygame.BLEND_RGB_MULT)
+                surf.blit(grey_heart, (x, y))
+
+
+    # Movement & Animation
     def update(self):
-        # Check if action should end
+        # End action if duration exceeded
         if self.is_performing_action:
-            current_time = pygame.time.get_ticks()
-            if current_time - self.action_start_time >= self.action_duration:
+            if pygame.time.get_ticks() - self.action_start_time >= self.action_duration:
                 self.is_performing_action = False
                 self.action = IDLE
                 self.frame = 0
 
-        # Animation update
-        current_time = pygame.time.get_ticks()
-        if current_time - self.last_update >= self.animation_cooldown:
+        # Animate
+        now = pygame.time.get_ticks()
+        if now - self.last_update >= self.animation_cooldown:
             self.frame += 1
-            self.last_update = current_time
-            
-            # Check if we've reached the end of the current animation
+            self.last_update = now
             if self.frame >= self.get_animation_length():
+                self.frame = 0
                 if self.is_performing_action:
-                    # For actions, stop the action when animation completes
                     self.is_performing_action = False
                     self.action = IDLE
-                self.frame = 0
 
-        # Get and scale the current image
+        # Update image and rect using consistent bottom-left position
         self.image = self.scale_current_image()
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
 
-        # Only apply physics if not performing an action
+        self.rect = self.image.get_rect()
+        self.rect.bottomleft = self.pos
+
+        # Physics (if not performing action)
         if not self.is_performing_action:
-            # Gravity
             self.vel_y += self.gravity
-            self.rect.y += self.vel_y
-            if self.rect.bottom >= SCREEN_HEIGHT - 50:
-                self.rect.bottom = SCREEN_HEIGHT - 50
+            self.pos.y += self.vel_y
+            if self.pos.y >= SCREEN_HEIGHT - 50:
+                self.pos.y = SCREEN_HEIGHT - 50
                 self.vel_y = 0
                 self.in_air = False
 
-            # Horizontal movement
-            self.rect.x += self.vel_x
-            if self.rect.left < 0:
-                self.rect.left = 0
-            if self.rect.right > SCREEN_WIDTH:
-                self.rect.right = SCREEN_WIDTH
-            self.hitbox.center = self.rect.center
+            self.pos.x += self.vel_x
+            if self.pos.x < 0: self.pos.x = 0
+            if self.pos.x + self.rect.width > SCREEN_WIDTH:
+                self.pos.x = SCREEN_WIDTH - self.rect.width
 
-    def move(self, left, right, jump, attack, mine):
-        # Handle action inputs first
+        # Update hitbox
+        self.rect.bottomleft = self.pos
+        self.hitbox = self.rect.inflate(-60, -10)
+
+    def move(self, left, right, jump, attack=False, mine=False):
         if attack:
             self.perform_action(ATTACK)
             return
         if mine:
             self.perform_action(MINE)
             return
-
-        # Don't allow movement during actions
         if self.is_performing_action:
             return
 
@@ -256,21 +242,18 @@ class Player:
             self.vel_x = self.speed
             self.flip = False
 
-        previous_action = self.action
+        prev_action = self.action
         if self.in_air:
             self.action = JUMP
         else:
-            if self.vel_x != 0:
-                self.action = WALK
-            else:
-                self.action = IDLE
-
-        if previous_action != self.action:
+            self.action = WALK if self.vel_x != 0 else IDLE
+        if prev_action != self.action:
             self.frame = 0
 
     def draw(self, surf):
         surf.blit(self.image, self.rect)
         self.draw_health_bar(surf)
+
 
 # --- GENDER SELECTION SCREEN ---
 def gender_selection_screen():
