@@ -142,11 +142,12 @@ def intro_sequence():
         pygame.display.flip()
 
     pygame.mixer.music.stop()
+screen = pygame.display.set_mode(screen.get_size(),pygame.NOFRAME)
 def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
     if music:
         pygame.mixer.music.load(music)
         pygame.mixer.music.set_volume(volume)
-        pygame.mixer.music.play(-1)
+        pygame.mixer.music.play(1)
 
     for img in images:
         fade_alpha = 0
@@ -190,7 +191,7 @@ def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
             temp_img = img.copy()
             temp_img.set_alpha(fade_alpha)
             screen.blit(temp_img, (0,0))
-            pygame.display.flip()
+            pygame.display.flip()   
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -267,6 +268,48 @@ def title_menu_screen():
         pygame.display.flip()
 
 #========Other Screens=========#
+def draw_credits():
+    screen.fill("black")
+
+    credits = [
+        "Campus of Cosmos",
+        "",
+        "Cosmos Studios Team",
+        "Michael",
+        "Settings, and Credits",
+        "Sidarrtan",
+        "Player & Gameplay Physics, character Selection, Enemy Physics & Spritesheet Frame,",
+        "Boss Physics & Animation",
+        "Imran",
+        "Main Menu design, Opening Cutscene & Ending Cutscene, Intro Screen, World Generation,",
+        "Saving/Continue World, Inventory System, World Map, Level Generation, Crafting Recipe Logic,",
+        "Music Background, Timer, Healthbar, Collison Detection, Placing & Destroying Blocks",
+        "Special Thanks to:",
+        "Miss Suhaini",
+        "Thank you for playing our game!",
+    ]
+
+    if not hasattr(draw_credits, "scroll_y"):
+        draw_credits.scroll_y = HEIGHT
+
+    y = draw_credits.scroll_y
+    for line in credits:
+        text = font.render(line, True, "white")
+        screen.blit(text, (WIDTH//2 - text.get_width()//2, y))
+        y += 40
+
+    draw_credits.scroll_y -= 2
+
+    if y < 0:
+        draw_credits.scroll_y = HEIGHT
+
+    back_btn = pygame.draw.rect(screen, 'white', [10, 10, 150, 40], 0, 5)
+    screen.blit(font.render("Back", True, "black"), (20, 15))
+    if back_btn.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
+        draw_credits.scroll_y = HEIGHT
+        return "menu"
+
+    return "credits"
 def draw_menu():
     panel = pygame.Surface((WIDTH//4, HEIGHT//1.25), pygame.SRCALPHA)
     panel.fill((128, 128, 128, 180))  
@@ -323,35 +366,13 @@ def pause_menu(screen, frozenbg):
                     return "continue"
                 if exit_btn.collidepoint(pygame.mouse.get_pos()):
                     return "exit"
+
 def play_menu_music():
     if not pygame.mixer.music.get_busy(): 
         pygame.mixer.music.stop() 
         pygame.mixer.music.load("Map\\MusicMan\\Game Main Menu Music ( 4th Album ) _ copyright free music [1ivlmbq6Td8].mp3")
         pygame.mixer.music.set_volume(volume + 1)
         pygame.mixer.music.play(-1)
-
-def draw_new_game():
-    global world
-    screen.fill((0,0,0))
-    loading_text = font.render("Loading World....", True, "white")
-    screen.blit(loading_text,(WIDTH//2 - loading_text.get_width()//2, HEIGHT//2))
-    pygame.display.flip()
-
-    character_choice = gender_selection_screen()  
-
-    if character_choice == "male":
-        play_cutscene(cutscene_male, music="Map\\MusicMan\\storymusic1.mp3")
-    elif character_choice == "female":
-        play_cutscene(cutscene_female, music="Map\\MusicMan\\storymusic1.mp3")
-
-    world = generateworld(pause_callback=pause_menu, gender=character_choice) 
-
-    state = world.run()
-    if state == "menu":
-        pygame.mixer.music.stop()
-        return "menu"
-
-
 
 def draw_continue():
     global world
@@ -417,42 +438,114 @@ def draw_settings():
 
     return "settings"
 
+import pygame
+import sys
 
+def show_dialogue(screen, text, portrait_img=None, typing_sound=None, clock=None):
+    if clock is None:
+        clock = pygame.time.Clock()
+    
+    font = pygame.font.SysFont("Consolas", 24)
+    line_spacing = 30
+    text_color = (255, 255, 255)
+    type_speed = 40  # ms per character
 
-def draw_credits():
-    screen.fill("black")
-
-    title_img = ui_images["credits"]
-    max_width = WIDTH//2
-    if title_img.get_width() > max_width:
-        scale = max_width / title_img.get_width()
-        title_img = pygame.transform.smoothscale(
-            title_img,
-            (int(title_img.get_width()*scale), int(title_img.get_height()*scale))
+    portrait_offset_x = 0
+    if portrait_img:
+        max_height = 100
+        scale = min(max_height / portrait_img.get_height(), 1)
+        portrait_img = pygame.transform.smoothscale(
+            portrait_img,
+            (int(portrait_img.get_width() * scale), int(portrait_img.get_height() * scale))
         )
-    title_rect = title_img.get_rect(center=(WIDTH//2, HEIGHT//6))
-    screen.blit(title_img, title_rect)
+        portrait_offset_x = portrait_img.get_width() + 10
 
-    funny_text = font.render("insert funny image in credits screen", True, "white")
-    screen.blit(funny_text, (WIDTH//2 - funny_text.get_width()//2, HEIGHT//2))
+    rendered_text = [char for char in text]
+    current_index = 0
+    last_update = pygame.time.get_ticks()
+    waiting_for_click = True
 
-    # Back button
-    back_img = ui_images["exit_menu"]
-    max_width = 300
-    if back_img.get_width() > max_width:
-        scale = max_width / back_img.get_width()
-        back_img = pygame.transform.smoothscale(
-            back_img,
-            (int(back_img.get_width() * scale), int(back_img.get_height() * scale))
-        )
-    back_rect = screen.blit(back_img, (20, 20))
-    if back_rect.collidepoint(pygame.mouse.get_pos()) and pygame.mouse.get_pressed()[0]:
-        play_click()
+    box_width = 500
+    box_height = 100
+    box_x = (screen.get_width() - box_width) // 2
+    box_y = screen.get_height() - box_height - 20
+
+    while waiting_for_click:
+        box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        box_surf.fill((0, 0, 0, 200))
+        pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
+        screen.blit(box_surf, (box_x, box_y))
+
+        if portrait_img:
+            screen.blit(portrait_img, (box_x + 10, box_y + box_height - portrait_img.get_height() - 10))
+
+        now = pygame.time.get_ticks()
+        if current_index < len(rendered_text) and now - last_update > type_speed:
+            current_index += 1
+            last_update = now
+            if typing_sound:
+                typing_sound.play()
+
+        words = "".join(rendered_text[:current_index]).split(" ")
+        lines = []
+        line = ""
+        for word in words:
+            test_line = line + word + " "
+            if font.size(test_line)[0] > box_width - portrait_offset_x - 20:
+                lines.append(line)
+                line = word + " "
+            else:
+                line = test_line
+        lines.append(line)
+
+        for i, line in enumerate(lines):
+            text_surf = font.render(line, True, text_color)
+            screen.blit(text_surf, (box_x + portrait_offset_x + 10, box_y + 10 + i * line_spacing))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                if current_index >= len(rendered_text):
+                    waiting_for_click = False
+                else:
+                    current_index = len(rendered_text)
+
+        clock.tick(60)
+def draw_new_game():
+    global world
+    screen.fill((0,0,0))
+    pygame.display.flip()
+
+    character_choice = gender_selection_screen()  
+
+    if character_choice == "male":
+        play_cutscene(cutscene_male, music="Map\\MusicMan\\storymusic1.mp3")
+    elif character_choice == "female":
+        play_cutscene(cutscene_female, music="Map\\MusicMan\\storymusic1.mp3")
+
+    typing_sound = pygame.mixer.Sound("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3")
+    if character_choice == "male":
+        portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
+    else:
+        portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
+
+    pygame.mixer.music.load("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3")
+    pygame.mixer.music.play(1)
+    show_dialogue(screen, 
+                "Where tf am I, better get back through that portal, I have an assignment to do!",
+                portrait_img=portrait_img,
+                )
+    
+    world = generateworld(pause_callback=pause_menu, gender=character_choice) 
+
+    state = world.run()
+    if state == "menu":
+        pygame.mixer.music.stop()
         return "menu"
-
-    return "credits"
-
-
 #========Main Loop=========#
 run = True
 while run:

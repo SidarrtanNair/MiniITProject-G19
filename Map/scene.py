@@ -429,7 +429,7 @@ class Boss(pygame.sprite.Sprite):
                 self.health = 0
                 self.is_dead = True
                 self.animator.set_animation('dead')
-                print("Boss defeated!")
+               
 
     def attack_player(self, player):  # Unchanged
         current_time = pygame.time.get_ticks()
@@ -438,7 +438,7 @@ class Boss(pygame.sprite.Sprite):
             if hasattr(player, 'hit_flash'):
                 player.hit_flash = pygame.time.get_ticks()
             self.last_attack = current_time
-            print(f"Boss attacked player! Player health: {player.current_health}/{player.maximum_health}")
+        
             return True
         return False
 
@@ -581,6 +581,26 @@ class Playeronworld(Player): #1
     #======DamageLogic============#   
     def get_damage(self, amt):
         super().get_damage(amt)
+    def handle_player_death(self):
+        if self.player.health <= 0:
+            self.player.health = self.player.maximum_health
+            self.player.vel_x = 0
+            self.player.vel_y = 0
+
+            if self.dimension == "hell":
+                self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
+                pygame.mixer.music.play(-1)
+            else:  # overworld
+                self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
+                pygame.mixer.music.play(-1)
+
+
+                                
+
     #========HealthLogic===========#
     def get_health(self, amt):
         super().get_health(amt)  # Use PlayerV4's method
@@ -609,9 +629,9 @@ class Playeronworld(Player): #1
     
     # ==== NEW ENEMY ATTACK METHOD ==== #
     def attack_enemies(self, enemy_group, boss_group=None):
-        """Attack nearby enemies or boss when player presses attack key"""
-        attack_range = 60  # Pixels
-        boss_attack_range = 150
+        
+        attack_range = 120  
+        boss_attack_range = 220
         attacked = False
         
         # Attack enemies (existing logic)
@@ -623,6 +643,7 @@ class Playeronworld(Player): #1
                 if distance <= attack_range:
                     enemy.take_damage(100)  # Kill enemy
                     attacked = True
+                    self.health += 10
                     break  # One attack per frame
         
         # Attack boss if present and in range
@@ -934,8 +955,25 @@ class generateworld:
         for s in self.sounds.values():
             s.set_volume(self.sfx_volume)
         self.init_player(gender)
-    
-    def loading_screen(self, text="Loading...", duration=1.0):
+    def handle_player_death(self):
+        if self.player.health <= 0:
+            self.player.health = self.player.maximum_health
+            self.player.vel_x = 0
+            self.player.vel_y = 0
+
+            if self.dimension == "hell":
+                self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
+                pygame.mixer.music.play(-1)
+            else:  # overworld
+                self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
+                pygame.mixer.music.play(-1)
+
+
+    def loading_screen(self, text="Loading Hell...", duration=4.0):
         self.screen.fill((0, 0, 0))  # black background
         font = pygame.font.SysFont("Arial", 48)
         label = font.render(text, True, (255, 100, 0))  # fiery orange
@@ -1098,79 +1136,6 @@ class generateworld:
                     spawn_y = block["rect"].top
         self.player.rect.bottomleft = (spawn_x, spawn_y)
 
-    def show_dialogue(self, text, portrait_img=None, text_sound = None):
-        pygame.mixer.music.stop()
-        font = pygame.font.SysFont("Consolas", 24)
-        line_spacing = 30
-        text_color = (255, 255, 255)
-        type_speed = 40
-
-        portrait_offset_x = 0
-        if portrait_img:
-            max_height = 100
-            scale = min(max_height / portrait_img.get_height(), 1)
-            portrait_img = pygame.transform.smoothscale(
-                portrait_img,
-                (int(portrait_img.get_width() * scale), int(portrait_img.get_height() * scale))
-            )
-            portrait_offset_x = portrait_img.get_width() + 10
-
-        rendered_text = [char for char in text]
-        current_index = 0
-        last_update = pygame.time.get_ticks()
-        waiting_for_click = True
-
-        box_width = 500
-        box_height = 100
-        box_x = (self.screen.get_width() - box_width) // 2
-        box_y = self.screen.get_height() - box_height - 20
-
-        while waiting_for_click:
-            
-            box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
-            box_surf.fill((0, 0, 0, 200))
-            pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
-            self.screen.blit(box_surf, (box_x, box_y))
-
-            if portrait_img:
-                self.screen.blit(portrait_img, (box_x + 10, box_y + box_height - portrait_img.get_height() - 10))
-
-            now = pygame.time.get_ticks()
-            if current_index < len(rendered_text) and now - last_update > type_speed:
-                current_index += 1
-                last_update = now
-
-            words = "".join(rendered_text[:current_index]).split(" ")
-            lines = []
-            line = ""
-            for word in words:
-                test_line = line + word + " "
-                if font.size(test_line)[0] > box_width - portrait_offset_x - 20:
-                    lines.append(line)
-                    line = word + " "
-                else:
-                    line = test_line
-            lines.append(line)
-
-            for i, line in enumerate(lines):
-                text_surf = font.render(line, True, text_color)
-                self.screen.blit(text_surf, (box_x + portrait_offset_x + 10, box_y + 10 + i * line_spacing))
-
-            pygame.display.flip()
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
-                    if current_index >= len(rendered_text):
-                        waiting_for_click = False
-                    else:
-                        current_index = len(rendered_text)
-
-            self.clock.tick(60)
-
-
 
     def set_seed(self):
         self.seed = random.randint(0, 10**9)
@@ -1314,39 +1279,55 @@ class generateworld:
             self.corrupt_area(px, py, radius=15, seed=self.seed)
 
     def gen_hell(self, number_levels=3):
-        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        self.blocks.clear()
+        pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
-        self.blocks.clear()
-        pygame.m
-        screen_width, screen_height = self.screen.get_size()
-        colums = screen_width // self.block_width
 
-        # Hell background
+        screen_width, screen_height = self.screen.get_size()
+        columns = screen_width // self.block_width
         self.background = pygame.image.load("Map\\BACKGROUND\\hellgame1.gif").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
-        
-        height = 5
+
+        height = 9
+
         for level in range(number_levels):
-            for x in range(colums):
-                surface_y = screen_height - (height * self.block_height)
+            for x in range(columns):
                 for y in range(height):
                     if y == height - 1:
-                        blocktype = "magma_block"
-                    elif y < height - 1 and random.random() < 0.05:
                         blocktype = "lava_block"
-                    else:
+                    elif y == 0:
                         blocktype = "magma_block"
+                    else:
+                        blocktype = "lava_block"
 
                     texture = self.blocklibrary[blocktype].copy()
-                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y))
+                    rect_y = screen_height - (height - y) * self.block_height
+                    rect = texture.get_rect(topleft=((x + level * columns) * self.block_width, rect_y))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
-                    # Random fire blocks on top of magma
                     if blocktype == "magma_block" and random.random() < 0.08:
-                        fire_rect = self.blocklibrary['fire_block'].get_rect(topleft=(rect.x, rect.y - self.block_height))
+                        fire_rect = self.blocklibrary['fire_block'].get_rect(
+                            topleft=(rect.x, rect.y - self.block_height))
                         self.blocks.append({"type": "fire_block", "texture": self.blocklibrary['fire_block'], "rect": fire_rect})
-                        
+
+        portal_x = (columns * number_levels - 5) * self.block_width
+        portal_y = screen_height - height * self.block_height - 6 * self.block_height
+
+        portal_rect = pygame.Rect(portal_x, portal_y, self.block_width, 6 * self.block_height)
+        self.blocks = [b for b in self.blocks if not portal_rect.colliderect(b["rect"])]
+
+        rect = self.blocklibrary['portal_block'].get_rect(topleft=(portal_x, portal_y))
+        self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
+
+        for i in range(1, 5):
+            rect = self.blocklibrary['portal_energy_block'].get_rect(topleft=(portal_x, portal_y + i * self.block_height))
+            self.blocks.append({"type": "portal_energy_block", "texture": self.blocklibrary['portal_energy_block'], "rect": rect})
+
+        rect = self.blocklibrary['portal_block'].get_rect(topleft=(portal_x, portal_y + 5 * self.block_height))
+        self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
+
+                                        
 
         # Build fullmap once for hell
         world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
@@ -1438,6 +1419,7 @@ class generateworld:
             if item is None:
                 self.hotbar_slots[i] = (block_type, 1)
                 return
+    
     def consume_from_hotbar(self, item, amount):
         remaining = amount
         for i in range(len(self.hotbar_slots)):
@@ -1461,8 +1443,7 @@ class generateworld:
         inv_height = self.inventory_rows * self.inventory_slot_size + (self.inventory_rows - 1) * self.inventory_padding
         inv_x = (self.screen.get_width() - inv_width) // 2
         inv_y = (self.screen.get_height() - inv_height) // 2
-        invbackground = pygame.transform.scale(self.inventory_bg,(inv_width,inv_height))
-        self.screen.blit(invbackground,(inv_x,inv_y))
+
 
         for row in range(self.inventory_rows):
             for col in range(self.inventory_cols):
@@ -1538,7 +1519,6 @@ class generateworld:
                     for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
                         screen.blit(outline_surf, (count_rect.x + dx, count_rect.y + dy))
                     screen.blit(count_surf, count_rect)
-
     # ===== Inventory Drag & Drop =====
     def handle_inventory_click(self):
         mx, my = pygame.mouse.get_pos()
@@ -1640,22 +1620,12 @@ class generateworld:
                 self.hotbar_slots[i] = slot
             else:
                 self.hotbar_slots[i] = (None, 0)
-
-                
+              
     def run(self):
-        if self.player:
-            if self.player.gender == "male":
-                portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
-            else:
-                portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
-
-            self.show_dialogue(
-                "Where tf am I, better get back through that portal, I have an assignment to do!",
-                portrait_img=portrait_img,
-            )
-            pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
-            pygame.mixer.music.set_volume(self.volume)
-            pygame.mixer.music.play(-1)
+        
+        pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
+        pygame.mixer.music.set_volume(self.volume)
+        pygame.mixer.music.play(-1)
 
         running = True
         radius = 7 * self.block_width 
@@ -1706,60 +1676,71 @@ class generateworld:
                         self.selected_index = event.key - pygame.K_1
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    mx,my = pygame.mouse.get_pos()
+                    mx, my = pygame.mouse.get_pos()
                     world_mouse = (mx - camera_x, my)
+
                     for block in self.blocks:
                         if block["rect"].collidepoint(world_mouse):
                             if block["type"] in ["portal_block", "portal_energy_block"]:
                                 if self.dimension == "overworld":
-                                    self.loading_screen("Entering Hell...", 1.5)  # optional loading screen
-                                    self.dimension = "hell"
-                                    self.current_scene = 0
-                                    self.gen_hell(number_levels=self.number_levels)
+                                    # Enter Hell
+                                    self.loading_screen("Entering Hell...", 1.5)
                                     self.dimension = "hell"
                                     self.current_scene = 0
                                     self.gen_hell(number_levels=self.number_levels)
                                     self.enemy_group.empty()
                                     self.spawn_enemies()
+                                    self.boss_group.empty()
+                                    self.fireball_group.empty()
+                                    
+                                    # Update player references
+                                    self.player.blocks = self.blocks
+                                    self.player.boss_group = self.boss_group
+                                    self.player.fireball_group = self.fireball_group
+                                    
                                     # Move player to hell spawn
                                     self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
                                     self.player.vel_x = 0
                                     self.player.vel_y = 0
-                                    # NEW: Initialize boss system for hell only
+                                    
+                                    # Start Hell music
+                                    pygame.mixer.music.stop()
+                                    pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
+                                    pygame.mixer.music.play(-1)
+                                    
+                                    # Initialize boss
                                     self.init_boss_system(hell_mode=True)
-                                    self.current_music = "overworld" 
-                                    # move player to hell spawn coordinates
-                                    self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
-                                    self.player.vel_x = 0
-                                    self.player.vel_y = 0
+
                                 else:
+                                    # Return to Overworld
                                     self.loading_screen("Returning to Overworld...", 1.5)
                                     self.dimension = "overworld"
                                     self.current_scene = 0
                                     self.gen_world(number_levels=self.number_levels)
-                                    self.dimension = "overworld"
-                                    self.current_scene = 0
-                                    self.gen_world(number_levels=self.number_levels)
+                                    self.enemy_group.empty()
+                                    self.spawn_enemies()
+                                    self.boss_group.empty()
+                                    self.fireball_group.empty()
+                                    
+                                    # Update player references
+                                    self.player.blocks = self.blocks
+                                    self.player.boss_group = self.boss_group
+                                    self.player.fireball_group = self.fireball_group
+                                    
                                     # Move player to overworld spawn
                                     self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
                                     self.player.vel_x = 0
                                     self.player.vel_y = 0
-                                    self.enemy_group.empty()
-                                    self.spawn_enemies()
-                                    # NEW: Clear boss when leaving hell
-                                    self.boss_group.empty()
-                                    self.fireball_group.empty()
-                                    self.current_music = "overworld"  # Ensure overworld music plays
-                                    # In the update section, after updating fireballs:
-                                    for fireball in self.fireball_group.copy():
-                                        if not fireball.alive():  # Fireballs self-kill on collision
-                                            self.fireball_group.remove(fireball)
-                                    # move player to overworld spawn
-                                    self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
-                                    self.player.vel_x = 0
-                                    self.player.vel_y = 0
+                                    
+                                    # Start Overworld music
+                                    pygame.mixer.music.stop()
+                                    pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
+                                    pygame.mixer.music.play(-1)
+                                
                                 break
 
+                self.handle_player_death()
+                   
                 # ===== Crafting click =====
                 if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mx, my = pygame.mouse.get_pos()
