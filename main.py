@@ -64,15 +64,11 @@ def intro_sequence():
 
     logo1 = pygame.image.load("Map\\BACKGROUND\\logo.png").convert_alpha()
 
-# Get original size
     logo_w, logo_h = logo1.get_size()
 
-    # Scale proportionally if needed (optional: limit to screen size)
-    scale_factor = min(WIDTH / logo_w * 0.6, HEIGHT / logo_h * 0.6)  # 60% of screen
+    scale_factor = min(WIDTH / logo_w * 0.6, HEIGHT / logo_h * 0.6)  
     new_size = (int(logo_w * scale_factor), int(logo_h * scale_factor))
     logo1 = pygame.transform.smoothscale(logo1, new_size)
-
-    # Center it
     logo1_rect = logo1.get_rect(center=(WIDTH//2, HEIGHT//2))
 
     pygame.mixer.music.load("Map\\Sounds\\intro.mp3")
@@ -151,7 +147,6 @@ def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
 
     for img in images:
         fade_alpha = 0
-        # Fade in
         while fade_alpha < 255:
             timer.tick(fps)
             screen.fill((0,0,0))
@@ -165,9 +160,7 @@ def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
                     pygame.quit()
                     exit()
                 if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                    return  # skip cutscene
-
-        # Linger
+                    return 
         linger = linger_frames
         while linger > 0:
             timer.tick(fps)
@@ -181,9 +174,9 @@ def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
                     pygame.quit()
                     exit()
                 if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                    return  # skip cutscene
+                    return 
 
-        # Fade out
+
         while fade_alpha > 0:
             timer.tick(fps)
             screen.fill((0,0,0))
@@ -197,7 +190,7 @@ def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
                     pygame.quit()
                     exit()
                 if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                    return  # skip cutscene
+                    return 
 
 #========Title Menu Screen=========#
 def title_menu_screen():
@@ -229,7 +222,7 @@ def title_menu_screen():
         exit_img,
         (int(exit_img.get_width() * exit_scale), int(exit_img.get_height() * exit_scale))
     )
-    exit_rect = exit_img.get_rect(center=(WIDTH//2, continue_rect.bottom + 50))  # 30px spacing below continue
+    exit_rect = exit_img.get_rect(center=(WIDTH//2, continue_rect.bottom + 50))
 
     fade_alpha = 0
     fade_speed = 5

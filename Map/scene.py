@@ -988,27 +988,25 @@ class generateworld:
         pygame.mixer.music.play(-1)
     def update_music(self):
         """Update background music based on dimension and current scene."""
-        current_time = pygame.time.get_ticks()  # Not strictly needed, but for future expansions
+        current_time = pygame.time.get_ticks()
         
-        # Boss music condition: Hell dimension AND last scene (boss area)
+    
         if self.dimension == "hell" and self.current_scene == self.number_levels - 1:
             if self.current_music != "boss":
-                pygame.mixer.music.stop()  # Stop current music
+                pygame.mixer.music.stop()
                 pygame.mixer.music.load("Map\\MusicMan\\EpicBossFight.mp3")
                 pygame.mixer.music.set_volume(self.volume)
-                pygame.mixer.music.play(-1)  # Loop indefinitely
+                pygame.mixer.music.play(-1) 
                 self.current_music = "boss"
-                print("Switched to Epic Boss Fight music!")  # Optional: For debugging
+                print("Switched to Epic Boss Fight music!") 
         else:
-            # Default to overworld music (for overworld or non-boss hell scenes)
             if self.current_music != "overworld":
                 pygame.mixer.music.stop()  # Stop current music
                 pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
                 pygame.mixer.music.set_volume(self.volume)
                 pygame.mixer.music.play(-1)
                 self.current_music = "overworld"
-                print("Switched back to overworld music!")  # Optional: For debugging
-
+                print("Switched back to overworld music!") 
 
     # ==== ENEMY INITIALIZATION ==== #
     def init_enemy_system(self):
@@ -1016,35 +1014,30 @@ class generateworld:
         try:
             enemy_sheet_img = pygame.image.load("PlayerMovementPhysics/Sprite_Img/enemy_sprite.png").convert_alpha()
         except pygame.error:
-            # Create placeholder sprite sheet if file doesn't exist
             enemy_sheet_img = pygame.Surface((256, 32)).convert_alpha()
-            enemy_sheet_img.fill((255, 0, 0))  # Red placeholder
+            enemy_sheet_img.fill((255, 0, 0))
         
         self.enemy_sheet = SpriteSheet(enemy_sheet_img)
         self.enemy_group = pygame.sprite.Group()
         
-        # Ensure world is generated before spawning enemies
         if len(self.blocks) > 0:
             self.spawn_enemies()
     
     def spawn_enemies(self):
         """Spawn enemies in scenes 2 and 3 only"""
-        self.enemy_group.empty()  # Clear existing enemies
+        self.enemy_group.empty() 
         screen_width = self.screen.get_width()
         
-        # Wait a moment to ensure blocks are fully generated
         if len(self.blocks) == 0:
             return
         
-        # Spawn enemies only in scenes 2 & 3 (index 1 & 2)
-        for scene in [1, 2]:  # Scene indices 1 and 2 (scenes 2 and 3)
-            num_enemies = random.randint(2, 3)  # 2-3 enemies per scene
+
+        for scene in [1, 2]: 
+            num_enemies = random.randint(2, 3) 
             
             for _ in range(num_enemies):
-                # Random x position within the scene
                 x = random.randint(scene * screen_width + 100, (scene + 1) * screen_width - 100)
                 
-                # Find grass blocks in this scene to determine spawn height
                 scene_grass_blocks = []
                 for block in self.blocks:
                     if (block["type"] in ["grass", "magma_block"] and
@@ -1052,64 +1045,54 @@ class generateworld:
                         scene_grass_blocks.append(block)
                 
                 if scene_grass_blocks:
-                    # Find the grass block closest to our spawn x position
                     closest_grass = min(scene_grass_blocks, 
                                       key=lambda b: abs(b["rect"].centerx - x))
-                    y = closest_grass["rect"].top - 500  # Start 200 pixels above grass
+                    y = closest_grass["rect"].top - 500 
                 else:
-                    # Fallback if no grass blocks found
                     y = 100
-                
-                # Create enemy
                 enemy = Enemy(x, y, self.enemy_sheet, 2, self.blocks, 
                              self.block_width, self.block_height)
                 self.enemy_group.add(enemy)
 
     #===== BOSS INITIALIZE =====#
     def init_boss_system(self, hell_mode=False):
-        """Initialize boss animations and spawn the boss in the last scene (hell only)."""
-        # Load boss animations once (scale=2 for visibility)
         self.boss_animations = load_boss_animations(scale=2)
 
-        # Clear any existing boss/fireballs
         self.boss_group.empty()
         self.fireball_group.empty()
 
-        # Spawn boss only if in hell and world is generated
         if hell_mode and len(self.blocks) > 0:
             self.spawn_boss(hell_mode=True)
 
 
     def spawn_boss(self, hell_mode=False):
-        """Spawn the boss in the last scene, at the far right (hell only)."""
         if not hell_mode:
-            return  # Only spawn in hell
+            return 
 
         screen_width = self.screen.get_width()
         last_scene_index = self.number_levels - 1
         scene_start_x = last_scene_index * screen_width
 
-        # Boss spawn x: Far right of last scene (100px margin from edge)
-        boss_width = 128 * 2  # Scaled width from animations (128px * scale=2)
-        spawn_x = scene_start_x + screen_width - boss_width - 100  # Most right side
 
-        # Initial y: High up, will fall to ground via find_ground()
-        spawn_y = 200  # Arbitrary high position to trigger gravity drop
+        boss_width = 128 * 2 
+        spawn_x = scene_start_x + screen_width - boss_width - 100  
 
-        # Create boss with world data
+        spawn_y = 200  
+
+
         world_width = screen_width * self.number_levels
         boss = Boss(
             spawn_x, spawn_y,
-            self.boss_animations,  # Loaded animations
+            self.boss_animations, 
             self.blocks, self.block_width, self.block_height,
-            world_width  # For bounds checking
+            world_width  
         )
         self.boss_group.add(boss)
 
         print(f"Boss spawned at ({spawn_x}, {spawn_y}) in last hell scene {last_scene_index}")
 
 
-    def init_player(self, gender):  # <-- accept gender as argument
+    def init_player(self, gender): 
         if gender == 'male':
             base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')).convert_alpha()
             attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_sprite_attack.png')).convert_alpha()
