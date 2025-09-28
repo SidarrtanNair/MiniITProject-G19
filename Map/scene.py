@@ -48,7 +48,6 @@ class Enemy(pygame.sprite.Sprite):
         self.block_width = block_width
         self.block_height = block_height
         
-        # Load animation frames
         animation_steps = 8
         for animation in range(animation_steps):
             image = sprite_sheet.get_image(animation, 32, 32, scale, (0, 0, 0))
@@ -56,8 +55,7 @@ class Enemy(pygame.sprite.Sprite):
                 image = pygame.transform.flip(image, True, False)
             image.set_colorkey((0, 0, 0))
             self.animation_list.append(image)
-        
-        # Set initial image and rect
+    
         self.image = self.animation_list[self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -80,7 +78,7 @@ class Enemy(pygame.sprite.Sprite):
         search_radius = self.block_width * 5
         for block in self.blocks:
             if (block["type"] in ["grass", "magma_block"] and 
-                abs(block["rect"].centerx - self.rect.centerx) < search_radius)
+                abs(block["rect"].centerx - self.rect.centerx) < search_radius):
                 ground_y = min(ground_y, block["rect"].top)
         
       
@@ -100,10 +98,10 @@ class Enemy(pygame.sprite.Sprite):
                 self.rect.top = 0
                 break
 
-    def check_collision(self, dx, dy):
+    def check_collision(self, distancex, distancey):
         temp_rect = self.rect.copy()
-        temp_rect.x += dx
-        temp_rect.y += dy
+        temp_rect.x += distancex
+        temp_rect.y += distancey
         for block in self.blocks:
             if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
                 continue
@@ -223,7 +221,7 @@ boss_animation_config = {
     'attack1': {'file': 'Sprite_Img/boss_attack1.png', 'frames': 8, 'width': 128, 'height': 128},
     'attack2': {'file': 'Sprite_Img/boss_attack2.png', 'frames': 4, 'width': 128, 'height': 128},
     'fireball': {'file': 'Sprite_Img/boss_fireball.png', 'frames': 6, 'width': 64, 'height': 64},
-    'run': {'file': 'Sprite_Img/boss_run.png', 'frames': 8, 'width': 128, 'height': 128},
+    'running': {'file': 'Sprite_Img/boss_run.png', 'frames': 8, 'width': 128, 'height': 128},
     'jump': {'file': 'Sprite_Img/boss_jump.png', 'frames': 9, 'width': 128, 'height': 128}
 }
 
@@ -246,8 +244,6 @@ def load_boss_animations(scale=2):
                 frames.append(frame)
             boss_animations[animation_name] = frames
         except pygame.error:
-            print(f"Warning: Could not load boss sprite {sprite_path}. Using placeholder.")
-            # Placeholder: Magenta surface
             placeholder = pygame.Surface((config['width'] * scale, config['height'] * scale)).convert_alpha()
             placeholder.fill((255, 0, 255))
             boss_animations[animation_name] = [placeholder] * config['frames']
@@ -262,8 +258,8 @@ class BossAnimator:
         self.update_time = pygame.time.get_ticks()
         self.animation_cooldown = 150  # ms per frame
         self.facing_right = False  # False = face left (toward player, negative x)
-        # Define which animations loop (idle, run, jump should loop; attacks/dead don't)
-        self.looping_animations = {'idle', 'run', 'jump'}
+        # Define which animations loop (idle, running, jump should loop; attacks/dead don't)
+        self.looping_animations = {'idle', 'running', 'jump'}
 
     def update(self):
         current_time = pygame.time.get_ticks()
@@ -356,34 +352,30 @@ class Boss(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-        # Physics: Lock to stationary (no movement or jumping)
-        self.vel_y = 0  # Start with 0, no gravity/jumping
-        self.gravity = 0.8  # Unused now, but keep for consistency
-        self.jump_speed = -18  # Unused now
-        self.on_ground = False  # Will be set True after find_ground
+       
+        self.vel_y = 0 
+        self.gravity = 0.8 
+        self.jump_speed = -18  
+        self.on_ground = False  
 
-        # Combat (unchanged)
         self.health = 500
         self.max_health = 500
         self.attack_damage = 15
-        self.attack_cooldown = 1000  # 1s between attacks
+        self.attack_cooldown = 3000  # 3s between attacks
         self.last_attack = 0
         self.is_dead = False
         self.fireball_cooldown = 0
         self.fireball_cd_time = 3000  # 3s between fireballs
 
-        # AI States: Simplified (no chase/jumping)
         self.state = 'idle'  
         self.last_state_change = 0
         self.state_change_cooldown = 500  # For attack triggers
 
-        # World (unchanged, but bounds unused now)
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
         self.world_width = world_width
 
-        # Masks (unchanged)
         self.masks = {}
         for anim_name, frames in animations.items():
             if anim_name != 'fireball':
@@ -391,26 +383,24 @@ class Boss(pygame.sprite.Sprite):
         self.current_mask = self.masks['idle'][0]
 
         self.find_ground()
-        # CHANGE: Lock position after finding ground—no more physics
         self.vel_y = 0
-        self.on_ground = True  # Stationary on ground forever
+        self.on_ground = True
 
     def find_ground(self):
-        # Unchanged: Find ground and set position
         ground_y = self.rect.y + 500
         for block in self.blocks:
             if (block["type"] in ["grass", "magma_block"] and
                 abs(block["rect"].centerx - self.rect.centerx) < self.block_width * 10):
                 if block["rect"].top > self.rect.y:
                     ground_y = min(ground_y, block["rect"].top)
-        self.rect.bottom = ground_y - 1  # On ground
-        # No vel_y or on_ground changes here—handled in __init__
+        self.rect.bottom = ground_y - 1
 
-    def check_collision(self, dx, dy):
+
+    def check_collision(self, distancex, distancey):
         
         temp_rect = self.rect.copy()
-        temp_rect.x += dx
-        temp_rect.y += dy
+        temp_rect.x += distancex
+        temp_rect.y += distancey
         for block in self.blocks:
             if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
                 continue
@@ -418,10 +408,9 @@ class Boss(pygame.sprite.Sprite):
                 return True
         return False
 
-    def take_damage(self, damage):  # Unchanged
+    def take_damage(self, damage):
         if not self.is_dead:
             self.health -= damage
-            print(f"Boss took {damage} damage. New health: {self.health}/{self.max_health}")
             if self.health <= 0:
                 self.health = 0
                 self.is_dead = True
@@ -440,10 +429,9 @@ class Boss(pygame.sprite.Sprite):
         return False
 
     def shoot_fireball(self, player, fireball_group):
-        # Unchanged
+        
         current_time = pygame.time.get_ticks()
         if current_time - self.fireball_cooldown >= self.fireball_cd_time and not self.is_dead:
-            # Play attack1 for ranged wind-up
             if self.state != 'ranged':
                 self.state = 'ranged'
                 self.animator.set_animation('attack1')
@@ -456,13 +444,12 @@ class Boss(pygame.sprite.Sprite):
             )
             fireball_group.add(fireball)
             self.fireball_cooldown = current_time
-            print("Boss shot fireball at 800px range!")
             return True
         return False
 
     def update(self, player, fireball_group):
         if self.is_dead:
-            # Unchanged: Play dead animation
+
             self.animator.update()
             self.image = self.animator.get_current_image()
             state = self.animator.current_animation
@@ -473,7 +460,6 @@ class Boss(pygame.sprite.Sprite):
         if not player:
             return
 
-        # Update animation (unchanged)
         anim_finished = self.animator.update()
         self.image = self.animator.get_current_image()
         state = self.animator.current_animation
@@ -483,8 +469,6 @@ class Boss(pygame.sprite.Sprite):
         dist_x = abs(player.rect.centerx - self.rect.centerx)
         dist_y = abs(player.rect.centery - self.rect.centery)
         current_time = pygame.time.get_ticks()
-
-        # CHANGE: Early melee collision check (triggers on overlap, no movement)
         if player and self.rect.colliderect(player.rect):
             offset_x = player.rect.x - self.rect.x
             offset_y = player.rect.y - self.rect.y
@@ -496,45 +480,35 @@ class Boss(pygame.sprite.Sprite):
                     self.animator.set_animation('attack2')
                     self.last_state_change = current_time
                 self.attack_player(player)  # Deal damage
-                print("Boss melee collision! Attack2 triggered.")
-            # Update anim/mask again for melee (in case it changed)
+            
             anim_finished = self.animator.update()
             self.image = self.animator.get_current_image()
             state = self.animator.current_animation
             if state in self.masks:
                 self.current_mask = self.masks[state][self.animator.current_frame % len(self.masks[state])]
-            # Reset after melee finishes
             if anim_finished and self.state == 'melee':
                 self.state = 'idle'
                 self.animator.reset_to_idle()
-            return  # Exit early—melee handled
-
-        # CHANGE: Simplified AI State Machine (no chase/jumping, only ranged or idle)
-        # Only change state if cooldown allows and not in attack
+            return
         if (current_time - self.last_state_change >= self.state_change_cooldown and 
             self.state not in ['melee', 'ranged']):
-            if dist_x > 800:  # Too far: Idle
+            if dist_x > 800:
                 self.state = 'idle'
                 self.animator.reset_to_idle()
-            elif 400 < dist_x <= 800:  # Ranged: Fireball + attack1
+            elif 400 < dist_x <= 800:
                 self.state = 'ranged'
                 self.animator.set_animation('attack1')
-                self.shoot_fireball(player, fireball_group)  # Triggers at ~800px
-                # Face player during ranged
+                self.shoot_fireball(player, fireball_group) 
                 self.animator.facing_right = player.rect.centerx > self.rect.centerx
-            else:  # Close but no overlap: Idle (no chase)
+            else:  
                 self.state = 'idle'
                 self.animator.reset_to_idle()
             self.last_state_change = current_time
 
-        # CHANGE: Handle non-looping anim finishes (reset to idle after ranged)
         if anim_finished and self.state == 'ranged':
             self.state = 'idle'
             self.animator.reset_to_idle()
 
-        # CHANGE: NO PHYSICS OR MOVEMENT (removed gravity, vel_y, rect.x/y updates, bounds)
-
-    # draw_health_bar and draw methods unchanged...
     def draw_health_bar(self, surf, camera_x):
         if self.is_dead:
             return
@@ -576,8 +550,9 @@ class Playeronworld(Player): #1
         self.mask = None
         self.hit_flash = 0
     #======DamageLogic============#   
-    def get_damage(self, amt):
-        super().get_damage(amt)
+    def get_damage(self, amount):
+        super().get_damage(amount)
+    
     def handle_player_death(self):
         if self.player.health <= 0:
             self.player.health = self.player.maximum_health
@@ -594,29 +569,23 @@ class Playeronworld(Player): #1
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
                 pygame.mixer.music.play(-1)
-
-
-                                
-
     #========HealthLogic===========#
-    def get_health(self, amt):
-        super().get_health(amt)  # Use PlayerV4's method
+    def get_health(self, amount):
+        super().get_health(amount)  
     
     @property
     def health(self):
-        """Compatibility property"""
         return self.current_health
     
     @health.setter 
     def health(self, value):
-        """Compatibility property setter"""
         self.current_health = max(0, min(self.maximum_health, value))
     
     #======CollisionCheck=============#
-    def check_collision(self, dx, dy):
+    def check_collision(self, distancex, distancey):
         temp_hitbox = self.hitbox.copy()
-        temp_hitbox.x += dx
-        temp_hitbox.y += dy
+        temp_hitbox.x += distancex
+        temp_hitbox.y += distancey
         for block in self.blocks:
             if block["type"] in ["bush", "tree_stump", "tree_log", "tree_top", "fire_block"]:
                 continue
@@ -624,41 +593,35 @@ class Playeronworld(Player): #1
                 return True
         return False
     
-    # ==== NEW ENEMY ATTACK METHOD ==== #
     def attack_enemies(self, enemy_group, boss_group=None):
         
         attack_range = 120  
         boss_attack_range = 220
         attacked = False
         
-        # Attack enemies (existing logic)
+    
         for enemy in enemy_group:
             if not enemy.is_dead:
-                dx = enemy.rect.centerx - self.rect.centerx
-                dy = enemy.rect.centery - self.rect.centery
-                distance = (dx**2 + dy**2)**0.5
+                distancex = enemy.rect.centerx - self.rect.centerx
+                distancey = enemy.rect.centery - self.rect.centery
+                distance = (distancex**2 + distancey**2)**0.5
                 if distance <= attack_range:
-                    enemy.take_damage(100)  # Kill enemy
+                    enemy.take_damage(100)  
                     attacked = True
                     self.health += 10
-                    break  # One attack per frame
+                    break  
         
-        # Attack boss if present and in range
-        if boss_group and not attacked:  # Only attack boss if no enemy was attacked
+        if boss_group and not attacked:  
             boss_list = boss_group.sprites()
             if boss_list:
                 boss = boss_list[0]
                 if boss and not boss.is_dead:
-                    dx = boss.rect.centerx - self.rect.centerx
-                    dy = boss.rect.centery - self.rect.centery
-                    distance = (dx**2 + dy**2)**0.5
+                    distancex = boss.rect.centerx - self.rect.centerx
+                    distancey = boss.rect.centery - self.rect.centery
+                    distance = (distancex**2 + distancey**2)**0.5
                     if distance <= boss_attack_range:
-                        # Deal 10% of boss max health (500 * 0.1 = 50 damage)
-                        # Change to 500 for 100% damage (instant kill)
-                        boss.take_damage(100)  # 10% damage
+                        boss.take_damage(100) 
                         attacked = True
-                        print(f"Player attacked boss! Boss health: {boss.health}/{boss.max_health}")
-
         return attacked
 
     #=============ConstantSids========================#
@@ -701,8 +664,6 @@ class Playeronworld(Player): #1
                     self.in_air = False
                 elif self.vel_y < 0:  
                     self.vel_y = 0
-
-        # Horizontal movement with collision checking
             if not self.check_collision(self.vel_x, 0):
                 self.rect.x += self.vel_x
             
@@ -711,13 +672,14 @@ class Playeronworld(Player): #1
                 self.rect.left = 0
             if self.rect.right > self.world_width:
                 self.rect.right = self.world_width
-            border_height = 20  # same as your top/bottom border
+            border_height = 20  
             
-            if self.rect.top < border_height:
-                self.rect.top = border_height
-                
-            if self.rect.bottom > self.screen.get_height() - border_height:
-                self.rect.bottom = self.screen.get_height() - border_height
+            if self.rect.top <  border_height-100:
+                self.rect.top = border_height - 100
+            if self.rect.bottom > 1000 - border_height:  
+                self.rect.bottom = 1000 - border_height
+                self.vel_y = 0
+                self.in_air = False
             self.hitbox.center = self.rect.center
             self.hitbox = self.rect.inflate(-60, -10)
 
@@ -1001,15 +963,15 @@ class generateworld:
                 pygame.mixer.music.set_volume(self.volume)
                 pygame.mixer.music.play(-1) 
                 self.current_music = "boss"
-                print("Switched to Epic Boss Fight music!") 
+                
         else:
             if self.current_music != "overworld":
-                pygame.mixer.music.stop()  # Stop current music
+                pygame.mixer.music.stop() 
                 pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
                 pygame.mixer.music.set_volume(self.volume)
                 pygame.mixer.music.play(-1)
                 self.current_music = "overworld"
-                print("Switched back to overworld music!") 
+               
 
     # ==== ENEMY INITIALIZATION ==== #
     def init_enemy_system(self):
@@ -1067,7 +1029,6 @@ class generateworld:
         if hell_mode and len(self.blocks) > 0:
             self.spawn_boss(hell_mode=True)
 
-
     def spawn_boss(self, hell_mode=False):
         if not hell_mode:
             return 
@@ -1091,9 +1052,6 @@ class generateworld:
             world_width  
         )
         self.boss_group.add(boss)
-
-        print(f"Boss spawned at ({spawn_x}, {spawn_y}) in last hell scene {last_scene_index}")
-
 
     def init_player(self, gender): 
         if gender == 'male':
@@ -1122,7 +1080,6 @@ class generateworld:
                     spawn_y = block["rect"].top
         self.player.rect.bottomleft = (spawn_x, spawn_y)
 
-
     def set_seed(self):
         self.seed = random.randint(0, 10**9)
 
@@ -1144,7 +1101,7 @@ class generateworld:
                 surface_y = screen_height - (height * self.block_height)
 
                 for y in range(height):
-                    y_px = screen_height - (y + 1) * self.block_height
+                    y_pixelx = screen_height - (y + 1) * self.block_height
                     if y == height - 1:
                         blocktype = "bush"
                     elif y == height - 2:
@@ -1160,13 +1117,13 @@ class generateworld:
                         blocktype = "dirt"
 
                     texture = self.blocklibrary[blocktype].copy()
-                    depth = (y_px - surface_y) // self.block_height
+                    depth = (y_pixelx - surface_y) // self.block_height
                     if depth > 0:
                         max_depth = 20
                         factor = max(0, 1 - ((depth / max_depth) ** 2))
                         texture.fill((int(255*factor), int(255*factor), int(255*factor)), special_flags=pygame.BLEND_MULT)
 
-                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_px))
+                    rect = texture.get_rect(topleft=((x + level * colums) * self.block_width, y_pixelx))
                     self.blocks.append({"type": blocktype, "texture": texture, "rect": rect})
 
                     if blocktype == "grass" and random.random() < 0.15:
@@ -1187,10 +1144,10 @@ class generateworld:
                             ['tree_middleleft','tree_middlemiddle','tree_middleright'],
                             ['tree_botleft','tree_botmiddle','tree_botright']
                         ]
-                        for dy, row in enumerate(treetop_textures):
-                            for dx, tex_name in enumerate(row):
+                        for distancey, row in enumerate(treetop_textures):
+                            for distancex, tex_name in enumerate(row):
                                 leaf_rect = self.blocklibrary[tex_name].get_rect(
-                                    topleft=(rect.x + (dx - 1) * self.block_width, treetop_y + dy * self.block_height))
+                                    topleft=(rect.x + (distancex - 1) * self.block_width, treetop_y + distancey * self.block_height))
                                 self.blocks.append({"type": "tree_top", "texture": self.blocklibrary[tex_name], "rect": leaf_rect})
 
         world_width_blocks = max(block["rect"].right for block in self.blocks) // self.block_width
@@ -1219,8 +1176,6 @@ class generateworld:
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
                 self.fullmap_surf.set_at((mx, my), color)
 
-
-    
         portal_x = None
         portal_y = None
         for block in self.blocks:
@@ -1229,29 +1184,23 @@ class generateworld:
                     portal_x = block["rect"].x
                     portal_y = block["rect"].y
         if portal_x is not None and portal_y is not None:
-            px = portal_x // self.block_width
-            py = portal_y // self.block_height
-
-            py = py - 6 
-
-            portal_rect = pygame.Rect(px*self.block_width, py*self.block_height,
+            pixelx = portal_x // self.block_width
+            pixely = portal_y // self.block_height
+            pixely = pixely - 6 
+            portal_rect = pygame.Rect(pixelx*self.block_width, pixely*self.block_height,
                           1*self.block_width, 6*self.block_height)
+            
             self.blocks = [b for b in self.blocks if not portal_rect.colliderect(b["rect"])]
-
-
-            # === Build 1x6 portal ===
-            rect = self.blocklibrary['portal_block'].get_rect(topleft=(px*self.block_width, py*self.block_height))
+            rect = self.blocklibrary['portal_block'].get_rect(topleft=(pixelx*self.block_width, pixely*self.block_height))
             self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
 
-            for i in range(1, 5):  # middle 4 = energy
-                rect = self.blocklibrary['portal_energy_block'].get_rect(topleft=(px*self.block_width, (py+i)*self.block_height))
+            for i in range(1, 5): 
+                rect = self.blocklibrary['portal_energy_block'].get_rect(topleft=(pixelx*self.block_width, (pixely+i)*self.block_height))
                 self.blocks.append({"type": "portal_energy_block", "texture": self.blocklibrary['portal_energy_block'], "rect": rect})
 
-            rect = self.blocklibrary['portal_block'].get_rect(topleft=(px*self.block_width, (py+5)*self.block_height))
+            rect = self.blocklibrary['portal_block'].get_rect(topleft=(pixelx*self.block_width, (pixely+5)*self.block_height))
             self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
-
-     
-            self.corrupt_area(px, py, radius=15, seed=self.seed)
+            self.corrupt_area(pixelx, pixely, radius=15, seed=self.seed)
 
     def gen_hell(self, number_levels=3):
         self.blocks.clear()
@@ -1317,25 +1266,25 @@ class generateworld:
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
                 self.fullmap_surf.set_at((mx, my), color)
 
-    def corrupt_area(self, px, py, radius=10, seed=None):
+    def corrupt_area(self, pixelx, pixely, radius=10, seed=None):
         noise = OpenSimplex(seed if seed is not None else random.randint(0,10000))
         new_blocks = []
         for b in self.blocks:
             bx = b["rect"].x // self.block_width
             by = b["rect"].y // self.block_height
-            dx = bx - px
-            dy = by - py
-            dist = (dx**2 + dy**2) ** 0.5
+            distancex = bx - pixelx
+            distancey = by - pixely
+            dist = (distancex**2 + distancey**2) ** 0.5
             if dist < radius:
                 fade = 1 - (dist / radius)
-                nval = noise.noise2(bx * 0.15, by * 0.15)
-                chance = (nval + 1) / 2 * fade
+                noisevalue = noise.noise2(bx * 0.15, by * 0.15)
+                chance = (noisevalue + 1) / 2 * fade
                 if b["type"] in ["grass","dirt","dirtstone","stone","bush",]:
                     if dist < radius:
                         fade = 1 - (dist / radius)
-                        nval = noise.noise2(bx * 0.15, by * 0.15)
-                        chance = (nval + 1) / 2  # keep full range [0..1]
-                        threshold = 0.3 * fade   # easier to trigger near center
+                        noisevalue = noise.noise2(bx * 0.15, by * 0.15)
+                        chance = (noisevalue + 1) / 2 
+                        threshold = 0.3 * fade  
                         if chance > threshold:
                             if b["type"] in ["grass","dirt","dirtstone","stone","bush","tree_log","tree_stump"]:
                                 tex = self.blocklibrary["magma_block"]
@@ -1486,8 +1435,8 @@ class generateworld:
                     count_surf = self.font.render(str(count), True, (255, 255, 255))
                     count_rect = count_surf.get_rect(bottomright=(slot_rect.right - 4, slot_rect.bottom - 4))
                     outline_surf = self.font.render(str(count), True, (0, 0, 0))
-                    for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-                        screen.blit(outline_surf, (count_rect.x + dx, count_rect.y + dy))
+                    for distancex, distancey in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                        screen.blit(outline_surf, (count_rect.x + distancex, count_rect.y + distancey))
                     screen.blit(count_surf, count_rect)
     # ===== Inventory Drag & Drop =====
     def handle_inventory_click(self):
@@ -1559,9 +1508,9 @@ class generateworld:
                             self.hotbar_slots[col] = slot if slot else (None, 0)
 
                         if self.dragging_row == 0:
-                            sidx = self.dragging_slot
+                            sidistancex = self.dragging_slot
                             scol = self.dragging_col
-                            slot = self.inventory_slots[sidx]
+                            slot = self.inventory_slots[sidistancex]
                             self.hotbar_slots[scol] = slot if slot else (None, 0)
 
                     
@@ -1591,7 +1540,7 @@ class generateworld:
             else:
                 self.hotbar_slots[i] = (None, 0)
               
-    def run(self):
+    def running(self):
         
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
@@ -1630,10 +1579,6 @@ class generateworld:
                         else:
                             self.sounds["inv_close"].play()
 
-                    
-                        
-                    if event.key == pygame.K_r:
-                        self.newseed()
                     if event.key == pygame.K_c:
                         self.show_crafting = not self.show_crafting
                         if self.show_crafting:
@@ -1729,16 +1674,16 @@ class generateworld:
                                     crafted_amount = 4
                                 for mat, amount in reqs.items():
                                     remaining = amount
-                                    for idx, slot in enumerate(self.inventory_slots):
+                                    for idistancex, slot in enumerate(self.inventory_slots):
                                         if slot and slot[0] == mat:
                                             item_name, count = slot
                                             if count > remaining:
-                                                self.inventory_slots[idx] = (item_name, count - remaining)
+                                                self.inventory_slots[idistancex] = (item_name, count - remaining)
                                                 remaining = 0
                                                 break
                                             else:
                                                 remaining -= count
-                                                self.inventory_slots[idx] = None
+                                                self.inventory_slots[idistancex] = None
 
                                 self.add_to_inventory(crafted_item, crafted_amount)
                                 self.update_hotbar()
@@ -1796,7 +1741,7 @@ class generateworld:
                                 # Determine the block grid coordinates
                                 col = int(world_mouse[0] // self.block_width)
                                 row = int((self.screen.get_height() - world_mouse[1]) // self.block_height)
-                                y_px = self.screen.get_height() - (row + 1) * self.block_height
+                                y_pixelx = self.screen.get_height() - (row + 1) * self.block_height
 
                                 selected_type, selected_count = self.hotbar_slots[self.selected_index]
 
@@ -1804,7 +1749,7 @@ class generateworld:
                                     continue
 
                         
-                                new_block_rect = self.blocklibrary[selected_type].get_rect(topleft=(col * self.block_width, y_px))
+                                new_block_rect = self.blocklibrary[selected_type].get_rect(topleft=(col * self.block_width, y_pixelx))
 
                               
                                 occupied = any(b["rect"].colliderect(new_block_rect) for b in self.blocks)
@@ -2081,9 +2026,9 @@ class generateworld:
                 self.screen.blit(map_display, map_rect)
 
                 # Player dot
-                px = int(self.player.rect.x / self.block_width * scale)
-                py = int(self.player.rect.y / self.block_height * scale)
-                pygame.draw.rect(self.screen, (255, 0, 0), (map_rect.left + px, map_rect.top + py, 6, 6))
+                pixelx = int(self.player.rect.x / self.block_width * scale)
+                pixely = int(self.player.rect.y / self.block_height * scale)
+                pygame.draw.rect(self.screen, (255, 0, 0), (map_rect.left + pixelx, map_rect.top + pixely, 6, 6))
 
 
 
@@ -2105,4 +2050,4 @@ class generateworld:
         return self.screen.get_height() - self.block_height
     
 if __name__ == "__main__":
-    generateworld().run()
+    generateworld().running()

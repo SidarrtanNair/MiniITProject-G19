@@ -1,6 +1,6 @@
 import pygame
 from Map.scene import *
-import time ,os
+import time ,os , sys
 
 #=================INIT================================================================================#
 pygame.init()
@@ -35,19 +35,16 @@ ui_images = {
 cutscene_male = [
     pygame.image.load("Map\\Cutscene\\male_intro1.png").convert_alpha(),
     pygame.image.load("Map\\Cutscene\\male_intro2.png").convert_alpha(),
-    pygame.image.load("Map\\Cutscene\\male_intro3.png").convert_alpha()
-]
+    pygame.image.load("Map\\Cutscene\\male_intro3.png").convert_alpha()]
 
 cutscene_female = [
     pygame.image.load("Map\\Cutscene\\female_intro1.png").convert_alpha(),
     pygame.image.load("Map\\Cutscene\\female_intro2.png").convert_alpha(),
-    pygame.image.load("Map\\Cutscene\\female_intro3.png").convert_alpha()
-]
+    pygame.image.load("Map\\Cutscene\\female_intro3.png").convert_alpha()]
 
 for i in range(3):
     cutscene_male[i] = pygame.transform.smoothscale(cutscene_male[i], (WIDTH, HEIGHT))
     cutscene_female[i] = pygame.transform.smoothscale(cutscene_female[i], (WIDTH, HEIGHT))
-
 #=============Start=================#
 def play_click():
     click_sound.set_volume(volume)
@@ -57,7 +54,6 @@ def play_menu_music():
     pygame.mixer.music.load( "menu_music.mp3")
     pygame.mixer.music.set_volume(0.5)  
     pygame.mixer.music.play(-1)  
-
 #========Opening===============#
 def intro_sequence():
     time.sleep(0.5)
@@ -138,7 +134,9 @@ def intro_sequence():
         pygame.display.flip()
 
     pygame.mixer.music.stop()
+
 screen = pygame.display.set_mode(screen.get_size(),pygame.NOFRAME)
+
 def play_cutscene(images, fade_speed=5, linger_frames=120, music=None):
     if music:
         pygame.mixer.music.load(music)
@@ -303,6 +301,7 @@ def draw_credits():
         return "menu"
 
     return "credits"
+
 def draw_menu():
     panel = pygame.Surface((WIDTH//4, HEIGHT//1.25), pygame.SRCALPHA)
     panel.fill((128, 128, 128, 180))  
@@ -371,7 +370,7 @@ def draw_continue():
     global world
     if world:
         world.play_music()
-        state = world.run()
+        state = world.running()
         if state == "menu":
             pygame.mixer.music.stop()
             return "menu"
@@ -386,7 +385,6 @@ def draw_continue():
             return "menu"
         
         return "continue"
-
 
 pygame.mixer_music.set_volume(1.0)
 volume = 1.0
@@ -431,9 +429,6 @@ def draw_settings():
 
     return "settings"
 
-import pygame
-import sys
-
 def show_dialogue(screen, text, portrait_img=None, typing_sound=None, clock=None):
     if clock is None:
         clock = pygame.time.Clock()
@@ -441,7 +436,7 @@ def show_dialogue(screen, text, portrait_img=None, typing_sound=None, clock=None
     font = pygame.font.SysFont("Consolas", 24)
     line_spacing = 30
     text_color = (255, 255, 255)
-    type_speed = 40  # ms per character
+    type_speed = 40#ms
 
     portrait_offset_x = 0
     if portrait_img:
@@ -508,6 +503,7 @@ def show_dialogue(screen, text, portrait_img=None, typing_sound=None, clock=None
                     current_index = len(rendered_text)
 
         clock.tick(60)
+
 def draw_new_game():
     global world
     screen.fill((0,0,0))
@@ -530,18 +526,17 @@ def draw_new_game():
     pygame.mixer.music.play(1)
     show_dialogue(screen, 
                 "Where tf am I, better get back through that portal, I have an assignment to do!",
-                portrait_img=portrait_img,
-                )
+                portrait_img=portrait_img,)
     
     world = generateworld(pause_callback=pause_menu, gender=character_choice) 
-
-    state = world.run()
+    state = world.running()
     if state == "menu":
         pygame.mixer.music.stop()
         return "menu"
+    
 #========Main Loop=========#
-run = True
-while run:
+running = True
+while running:
     screen.blit(pygame.transform.scale(background, (WIDTH, HEIGHT)), (0, 0))
     timer.tick(fps)
 
@@ -565,7 +560,7 @@ while run:
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            run = False
+            running = False
 
     pygame.display.flip()
 

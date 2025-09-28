@@ -274,22 +274,53 @@ class Player:
 
 # --- GENDER SELECTION SCREEN ---
 def gender_selection_screen():
-    font = pygame.font.SysFont(None, 60)
-    small_font = pygame.font.SysFont(None, 40)
+    pygame.init()
+
+    font = pygame.font.Font(None, 64)
+    small_font = pygame.font.Font(None, 36)
+
+    background = pygame.Surface(screen.get_size())
+    background.fill((20, 20, 30))
+
+    male_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
+    female_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
 
     selecting = True
     selected_gender = None
+    confirmed_gender = None
 
     while selecting:
-        screen.blit(background,(0,0))
-        
+        screen.blit(background, (0, 0))
+
         title_text = font.render("Select Your Character Gender", True, 'white')
+        screen.blit(title_text, (screen.get_width()//2 - title_text.get_width()//2, 50))
+
+        male_x = screen.get_width()//4 - male_img.get_width()//2
+        female_x = 3*screen.get_width()//4 - female_img.get_width()//2
+        y = screen.get_height()//2 - male_img.get_height()//2
+
+        screen.blit(male_img, (male_x, y))
+        screen.blit(female_img, (female_x, y))
+
         male_text = small_font.render("Press M for Male", True, 'white')
         female_text = small_font.render("Press F for Female", True, 'white')
+        confirm_text = small_font.render("Press again to confirm", True, 'white')
 
-        screen.blit(title_text, (SCREEN_WIDTH//2 - title_text.get_width()//2, SCREEN_HEIGHT//3))
-        screen.blit(male_text, (SCREEN_WIDTH//2 - male_text.get_width()//2, SCREEN_HEIGHT//2))
-        screen.blit(female_text, (SCREEN_WIDTH//2 - female_text.get_width()//2, SCREEN_HEIGHT//2 + 50))
+        screen.blit(male_text, (male_x + male_img.get_width()//2 - male_text.get_width()//2,
+                                y + male_img.get_height() + 10))
+        screen.blit(female_text, (female_x + female_img.get_width()//2 - female_text.get_width()//2,
+                                  y + female_img.get_height() + 10))
+
+        if selected_gender == "male":
+            pygame.draw.rect(screen, (0, 0, 210),
+                             (male_x - 5, y - 5, male_img.get_width() + 10, male_img.get_height() + 10), 4)
+            screen.blit(confirm_text, (male_x + male_img.get_width()//2 - confirm_text.get_width()//2,
+                                       y + male_img.get_height() + 40))
+        elif selected_gender == "female":
+            pygame.draw.rect(screen, (255, 0, 180),
+                             (female_x - 5, y - 5, female_img.get_width() + 10, female_img.get_height() + 10), 4)
+            screen.blit(confirm_text, (female_x + female_img.get_width()//2 - confirm_text.get_width()//2,
+                                       y + female_img.get_height() + 40))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -297,19 +328,25 @@ def gender_selection_screen():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_m:
-                    selected_gender = 'male'
-                    selecting = False
+                    if selected_gender == "male":
+                        confirmed_gender = "male"
+                        selecting = False
+                    else:
+                        selected_gender = "male"
                 elif event.key == pygame.K_f:
-                    selected_gender = 'female'
-                    selecting = False
+                    if selected_gender == "female":
+                        confirmed_gender = "female"
+                        selecting = False
+                    else:
+                        selected_gender = "female"
                 elif event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
 
-        pygame.display.update()
-        clock.tick(FPS)
+        pygame.display.flip()
 
-    return selected_gender
+    return confirmed_gender
+
 
 # --- MAIN LOOP ---
 def main():
