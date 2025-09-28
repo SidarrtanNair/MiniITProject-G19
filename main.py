@@ -2,7 +2,7 @@ import pygame
 from Map.scene import *
 import time ,os , sys
 
-#=================INIT================================================================================#
+#=================INIT================================================================================# IMRAN
 pygame.init()
 click_sound = pygame.mixer.Sound("Map\\Sounds\\user-interface-click-234656.mp3")
 click_sound.set_volume(0.5)
@@ -23,7 +23,7 @@ volume = 0.5
 world = None
 introplay = 0
 
-#=====================UIBUTTONIMAGES=============================================================================#
+#=====================UIBUTTONIMAGES=============================================================================# IMRAN
 ui_images = {
     "exit": pygame.image.load("Map\\UI+LOGO\\exit.png").convert_alpha(),
     "exit_menu": pygame.image.load("Map\\UI+LOGO\\exitmainmenu.png").convert_alpha(),
@@ -508,15 +508,11 @@ def draw_new_game():
     global world
     screen.fill((0,0,0))
     pygame.display.flip()
-
     character_choice = gender_selection_screen()  
-
     if character_choice == "male":
         play_cutscene(cutscene_male, music="Map\\MusicMan\\storymusic1.mp3")
     elif character_choice == "female":
         play_cutscene(cutscene_female, music="Map\\MusicMan\\storymusic1.mp3")
-
-    typing_sound = pygame.mixer.Sound("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3")
     if character_choice == "male":
         portrait_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
     else:
@@ -527,13 +523,12 @@ def draw_new_game():
     show_dialogue(screen, 
                 "Where tf am I, better get back through that portal, I have an assignment to do!",
                 portrait_img=portrait_img,)
-    
+   
     world = generateworld(pause_callback=pause_menu, gender=character_choice) 
     state = world.running()
     if state == "menu":
         pygame.mixer.music.stop()
         return "menu"
-    
 #========Main Loop=========#
 running = True
 while running:

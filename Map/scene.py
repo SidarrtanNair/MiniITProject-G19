@@ -17,7 +17,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # ======== ENEMY ======== #
-class Enemy(pygame.sprite.Sprite):
+class Enemy(pygame.sprite.Sprite): #SID
     def __init__(self, x, y, sprite_sheet, scale, blocks, block_width, block_height):
         pygame.sprite.Sprite.__init__(self)
     
@@ -250,7 +250,7 @@ def load_boss_animations(scale=2):
     
     return boss_animations
 
-class BossAnimator:
+class BossAnimator: #SID
     def __init__(self, animations):
         self.animations = animations
         self.current_animation = 'idle'
@@ -295,7 +295,7 @@ class BossAnimator:
 
 
     
-class Fireball(pygame.sprite.Sprite):
+class Fireball(pygame.sprite.Sprite): #SID
     def __init__(self, x, y, target_x, fireball_frames, blocks, block_width, block_height):
         super().__init__()
         self.frames = fireball_frames
@@ -342,7 +342,7 @@ class Fireball(pygame.sprite.Sprite):
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
 
-class Boss(pygame.sprite.Sprite):
+class Boss(pygame.sprite.Sprite): #SID
     def __init__(self, x, y, animations, blocks, block_width, block_height, world_width):
         super().__init__()
         self.animations = animations
@@ -535,7 +535,7 @@ class Boss(pygame.sprite.Sprite):
             self.draw_health_bar(surf, camera_x)
 
 # =====PLAYER================================================================================================================= #
-class Playeronworld(Player): #1
+class Playeronworld(Player): #IMRAN
     def __init__(self, base_animation_list, action_animation_list, gender, blocks, block_width, block_height, world_width, parent):
         super().__init__(base_animation_list, action_animation_list, gender)
         self.blocks = blocks
@@ -624,7 +624,7 @@ class Playeronworld(Player): #1
                         attacked = True
         return attacked
 
-    #=============ConstantSids========================#
+    #=============ConstantS========================#
     def update(self):
         current_time = pygame.time.get_ticks()
         
@@ -649,12 +649,9 @@ class Playeronworld(Player): #1
         if self.flip:
             self.image = pygame.transform.flip(self.image, True, False)
 
-        #Create/update mask for pixel-perfect collision
         self.mask = pygame.mask.from_surface(self.image)
 
-        # Only apply physics if not performing an action
         if not self.is_performing_action:
-            # Gravity with collision checking
             self.vel_y += self.gravity
             if not self.check_collision(0, self.vel_y):
                 self.rect.y += self.vel_y
@@ -723,7 +720,7 @@ class Playeronworld(Player): #1
             surf.blit(greenback, (x, y))
 
 # =====WORLDGEN================================================================================================================= #
-class generateworld:
+class generateworld: #IMRAN
     def __init__(self, gender,pause_callback = None, volume =0.5, ):
         pygame.init()
         self.dimension = 'overworld'
@@ -1019,8 +1016,8 @@ class generateworld:
                              self.block_width, self.block_height)
                 self.enemy_group.add(enemy)
 
-    #===== BOSS INITIALIZE =====#
-    def init_boss_system(self, hell_mode=False):
+    #===== BOSS INITIALIZE =====# 
+    def init_boss_system(self, hell_mode=False): #SID
         self.boss_animations = load_boss_animations(scale=2)
 
         self.boss_group.empty()
@@ -1029,7 +1026,7 @@ class generateworld:
         if hell_mode and len(self.blocks) > 0:
             self.spawn_boss(hell_mode=True)
 
-    def spawn_boss(self, hell_mode=False):
+    def spawn_boss(self, hell_mode=False): # SID
         if not hell_mode:
             return 
 
@@ -1053,7 +1050,7 @@ class generateworld:
         )
         self.boss_group.add(boss)
 
-    def init_player(self, gender): 
+    def init_player(self, gender): #IMRAN
         if gender == 'male':
             base_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_spriteV8_flipped.png')).convert_alpha()
             attack_sprite_image = pygame.image.load(os.path.join(parent_directory, 'PlayerMovementPhysics', 'Sprite_Img', 'male_sprite_attack.png')).convert_alpha()
@@ -1080,10 +1077,10 @@ class generateworld:
                     spawn_y = block["rect"].top
         self.player.rect.bottomleft = (spawn_x, spawn_y)
 
-    def set_seed(self):
+    def set_seed(self): #IMRAN
         self.seed = random.randint(0, 10**9)
 
-    def gen_world(self, number_levels=3):
+    def gen_world(self, number_levels=3): #IMRAN
         self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
         self.blocks.clear()
@@ -1202,7 +1199,7 @@ class generateworld:
             self.blocks.append({"type": "portal_block", "texture": self.blocklibrary['portal_block'], "rect": rect})
             self.corrupt_area(pixelx, pixely, radius=15, seed=self.seed)
 
-    def gen_hell(self, number_levels=3):
+    def gen_hell(self, number_levels=3): #IMRAN
         self.blocks.clear()
         pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
@@ -1266,7 +1263,7 @@ class generateworld:
             if 0 <= mx < self.fullmap_surf.get_width() and 0 <= my < self.fullmap_surf.get_height():
                 self.fullmap_surf.set_at((mx, my), color)
 
-    def corrupt_area(self, pixelx, pixely, radius=10, seed=None):
+    def corrupt_area(self, pixelx, pixely, radius=10, seed=None): #IMRAN
         noise = OpenSimplex(seed if seed is not None else random.randint(0,10000))
         new_blocks = []
         for b in self.blocks:
@@ -1357,7 +1354,7 @@ class generateworld:
         return consumed
     
     # ===== Inventory/Hotbar Drawing =====
-    def draw_inventory(self):
+    def draw_inventory(self): 
         inv_width = self.inventory_cols * self.inventory_slot_size + (self.inventory_cols - 1) * self.inventory_padding
         inv_height = self.inventory_rows * self.inventory_slot_size + (self.inventory_rows - 1) * self.inventory_padding
         inv_x = (self.screen.get_width() - inv_width) // 2
@@ -1397,8 +1394,6 @@ class generateworld:
     
     def draw_hotbar(self, screen, selected_index):
         hotbar_slots = self.hotbar_slots
-        
-    
         original_width = self.hotbar_image.get_width()
         original_height = self.hotbar_image.get_height()
         scale_factor = 0.2  
@@ -1408,7 +1403,6 @@ class generateworld:
         hotbar_y = screen.get_height() - hotbar_height - 10
         scaled_hotbar = pygame.transform.scale(self.hotbar_image, (hotbar_width, hotbar_height))
         screen.blit(scaled_hotbar, (hotbar_x, hotbar_y))
-        
         total_slots = 9
         slot_width = hotbar_width // total_slots
         slot_height = hotbar_height
@@ -1467,7 +1461,6 @@ class generateworld:
                         self.inventory_slots[index] = None  
                         return
 
-        # ===== Drop item =====
         if not mouse_pressed[0] and self.dragging_item is not None:
             for row in range(self.inventory_rows):
                 for col in range(self.inventory_cols):
@@ -1520,7 +1513,6 @@ class generateworld:
                             self.dragging_col = None
                         return
 
-            # ===== Dropped outside → return to original slot =====
             self.inventory_slots[self.dragging_slot] = self.dragging_item
             if self.dragging_row == 0:
                 scol = self.dragging_col
@@ -1539,17 +1531,14 @@ class generateworld:
                 self.hotbar_slots[i] = slot
             else:
                 self.hotbar_slots[i] = (None, 0)
-              
-    def running(self):
-        
+    
+    def running(self): #IMRAN
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
 
         running = True
         radius = 7 * self.block_width 
-        health_display_time = 3000  
-        last_health_change = 0  
         screen_width = self.screen.get_width()
 
         while running:
@@ -1593,63 +1582,136 @@ class generateworld:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mx, my = pygame.mouse.get_pos()
                     world_mouse = (mx - camera_x, my)
-
+                    
                     for block in self.blocks:
                         if block["rect"].collidepoint(world_mouse):
                             if block["type"] in ["portal_block", "portal_energy_block"]:
-                                if self.dimension == "overworld":
-                              
-                                    self.loading_screen("Entering Hell...", 1.5)
-                                    self.dimension = "hell"
-                                    self.current_scene = 0
-                                    self.gen_hell(number_levels=self.number_levels)
-                                    self.enemy_group.empty()
-                                    self.spawn_enemies()
-                                    self.boss_group.empty()
-                                    self.fireball_group.empty()
-                                    
+                                    if self.dimension == "overworld":
                                 
-                                    self.player.blocks = self.blocks
-                                    self.player.boss_group = self.boss_group
-                                    self.player.fireball_group = self.fireball_group
+                                        self.loading_screen("Entering Hell...", 1.5)
+                                        self.dimension = "hell"
+                                        self.current_scene = 0
+                                        self.gen_hell(number_levels=self.number_levels)
+                                        self.enemy_group.empty()
+                                        self.spawn_enemies()
+                                        self.boss_group.empty()
+                                        self.fireball_group.empty()
+                                        
                                     
-                                    self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
-                                    self.player.vel_x = 0
-                                    self.player.vel_y = 0
-                                    
-                                    pygame.mixer.music.stop()
-                                    pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
-                                    pygame.mixer.music.play(-1)
-                                    
-                                    self.init_boss_system(hell_mode=True)
+                                        self.player.blocks = self.blocks
+                                        self.player.boss_group = self.boss_group
+                                        self.player.fireball_group = self.fireball_group
+                                        
+                                        self.player.rect.topleft = (self.hell_spawn_x, self.hell_spawn_y)
+                                        self.player.vel_x = 0
+                                        self.player.vel_y = 0
+                                        
+                                        pygame.mixer.music.stop()
+                                        pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
+                                        pygame.mixer.music.play(-1)
+                                        
+                                        self.init_boss_system(hell_mode=True)
 
-                                else:
-                                    self.loading_screen("Returning to Overworld...", 1.5)
-                                    self.dimension = "overworld"
-                                    self.current_scene = 0
-                                    self.gen_world(number_levels=self.number_levels)
-                                    self.enemy_group.empty()
-                                    self.spawn_enemies()
-                                    self.boss_group.empty()
-                                    self.fireball_group.empty()
-                                    
-                                    self.player.blocks = self.blocks
-                                    self.player.boss_group = self.boss_group
-                                    self.player.fireball_group = self.fireball_group
+                                    else:
+                                            pygame.mixer.music.stop()
+                                            self.loading_screen("Returning to Overworld...", 1.5)
+                                            self.dimension = "overworld"
+                                            self.current_scene = 0
+                                            self.gen_world(number_levels=self.number_levels)
+                                            self.enemy_group.empty()
+                                            self.spawn_enemies()
+                                            self.boss_group.empty()
+                                            self.fireball_group.empty()
+                                            
+                                            self.player.blocks = self.blocks
+                                            self.player.boss_group = self.boss_group
+                                            self.player.fireball_group = self.fireball_group
 
-                                    self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
-                                    self.player.vel_x = 0
-                                    self.player.vel_y = 0
+                                            self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
+                                            self.player.vel_x = 0
+                                            self.player.vel_y = 0
+
+
+                                            # ================= Dialogue sequence =================
+                                            font = pygame.font.SysFont("Consolas", 24)
+                                            line_spacing = 30
+                                            text_color = (255, 255, 255)
+                                            type_speed = 40  # ms per character
+
+                                            text = "Wait am I in a time loop huh ?"
+                                            rendered_text = [char for char in text]
+                                            current_index = 0
+                                            last_update = pygame.time.get_ticks()
+                                            waiting_for_click = True
+
+                                            box_width = 500
+                                            box_height = 100
+                                            box_x = (self.screen.get_width() - box_width) // 2
+                                            box_y = self.screen.get_height() - box_height - 20
+
+                                            clock = pygame.time.Clock()
+
+                                            while waiting_for_click:
+                                                # redraw the world background (simple: just re-blit the background)
+                                                self.screen.blit(self.background, (0, 0))
+
+                                                # draw dialogue box
+                                                box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+                                                box_surf.fill((0, 0, 0, 200))
+                                                pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
+                                                self.screen.blit(box_surf, (box_x, box_y))
+
+                                                now = pygame.time.get_ticks()
+                                                if current_index < len(rendered_text) and now - last_update > type_speed:
+                                                    current_index += 1
+                                                    last_update = now
+                                                    pygame.mixer.music.load("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3")
+                                                    pygame.mixer.music.play(1)
+                                                    
+
+                                                words = "".join(rendered_text[:current_index]).split(" ")
+                                                lines = []
+                                                line = ""
+                                                for word in words:
+                                                    test_line = line + word + " "
+                                                    if font.size(test_line)[0] > box_width - 20:
+                                                        lines.append(line)
+                                                        line = word + " "
+                                                    else:
+                                                        line = test_line
+                                                lines.append(line)
+
+                                                for i, line in enumerate(lines):
+                                                    text_surf = font.render(line, True, text_color)
+                                                    self.screen.blit(text_surf, (box_x + 10, box_y + 10 + i * line_spacing))
+
+                                                pygame.display.flip()
+
+                                                for event in pygame.event.get():
+                                                    if event.type == pygame.QUIT:
+                                                        pygame.quit()
+                                                        sys.exit()
+                                                    if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                                                        if current_index >= len(rendered_text):
+                                                            waiting_for_click = False
+                                                        else:
+                                                            current_index = len(rendered_text)
+
+                                                clock.tick(60)
+                                            # =====================================================
+
+                                                                                                                                                                                                                
+
+                                        # =====================================================
+
+                                    # === Dialogue logic ends here ===
+
                                     
-                                    pygame.mixer.music.stop()
-                                    pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
-                                    pygame.mixer.music.play(-1)
-                                
-                                break
+                                    break
 
                 self.handle_player_death()
                    
-                # ===== Crafting click =====
+                # =====Crafting click=====
                 if self.show_crafting and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mx, my = pygame.mouse.get_pos()
                     start_y = 40
@@ -1890,7 +1952,6 @@ class generateworld:
                         fireball.draw(self.screen, camera_x)
 
             #==================Drawbar==========================#
-            # Replace all the hotbar drawing code with just this line:
             self.draw_hotbar(self.screen, self.selected_index)
 
                 #===========Heathdissapearlogic============#
@@ -1967,73 +2028,49 @@ class generateworld:
                         x_offset += 36
 
                     indexs += 1
-
-
-
             if self.show_inventory:
                 self.draw_inventory()
             
-
-
-
             # =====TIMER=====#
             elapsed_ms = current_time - self.start_time
             minutes = elapsed_ms // 60000
             seconds = (elapsed_ms % 60000) // 1000
             hundredths = (elapsed_ms % 1000) // 10  
 
-            
             self.timer_font = pygame.font.SysFont("Consolas", 26)  
             time_text = f"{minutes:02}:{seconds:02}:{hundredths:02}"
             time_surf = self.timer_font.render(time_text, True, (255, 255, 255))
-
             x_offset = self.screen.get_width() - 120  
             time_rect = time_surf.get_rect(topleft=(x_offset, 20))
 
             self.screen.blit(time_surf, time_rect)
 
             if self.show_fullmap and self.fullmap_surf:
-                # Dark overlay
                 overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
                 overlay.fill((0, 0, 0, 200))
                 self.screen.blit(overlay, (0, 0))
 
-                # Determine scale factor
                 max_width = self.screen.get_width() - 100
                 max_height = self.screen.get_height() - 100
                 scale_x = max_width / self.fullmap_surf.get_width()
                 scale_y = max_height / self.fullmap_surf.get_height()
                 scale = min(scale_x, scale_y)
-
-                # Scale minimap
                 map_display = pygame.transform.scale(
                     self.fullmap_surf,
                     (int(self.fullmap_surf.get_width() * scale),
                     int(self.fullmap_surf.get_height() * scale))
                 )
 
-                # Centered rectangle
                 map_rect = map_display.get_rect(center=self.screen.get_rect().center)
-
-                # Draw a background panel with border
                 panel = pygame.Surface((map_rect.width + 12, map_rect.height + 12), pygame.SRCALPHA)
-                panel.fill((20, 20, 20, 180))  # dark semi-transparent
-                pygame.draw.rect(panel, (255, 215, 0), panel.get_rect(), 2)  # golden border
+                panel.fill((20, 20, 20, 180))  
+                pygame.draw.rect(panel, (255, 215, 0), panel.get_rect(), 2) 
                 panel_rect = panel.get_rect(center=self.screen.get_rect().center)
                 self.screen.blit(panel, panel_rect.topleft)
-
-                # Draw minimap on top
                 self.screen.blit(map_display, map_rect)
-
-                # Player dot
                 pixelx = int(self.player.rect.x / self.block_width * scale)
                 pixely = int(self.player.rect.y / self.block_height * scale)
                 pygame.draw.rect(self.screen, (255, 0, 0), (map_rect.left + pixelx, map_rect.top + pixely, 6, 6))
-
-
-
-
-
 
             pygame.display.flip()
             self.clock.tick(60)
@@ -2042,8 +2079,6 @@ class generateworld:
     def get_safe_spawn_y(self, x, scene_index):
         screen_width = self.screen.get_width()
         scene_blocks = [b for b in self.blocks if scene_index * screen_width <= b["rect"].x < (scene_index + 1) * screen_width]
-
-        # Find blocks right under the player's X
         candidates = [b for b in scene_blocks if b["rect"].left <= x < b["rect"].right]
         if candidates:
             return min(b["rect"].top for b in candidates)
