@@ -284,7 +284,8 @@ def gender_selection_screen():
 
     male_img = pygame.image.load("Map\\Cutscene\\player_profile_m.png").convert_alpha()
     female_img = pygame.image.load("Map\\Cutscene\\player_profile_f.png").convert_alpha()
-
+    background_img = pygame.image.load("Map\BACKGROUND\sforest.png").convert_alpha()
+    background = pygame.transform.scale(background_img,screen.get_size())
     selecting = True
     selected_gender = None
     confirmed_gender = None
