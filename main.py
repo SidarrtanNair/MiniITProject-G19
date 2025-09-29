@@ -117,6 +117,7 @@ def intro_sequence():
         if fade_in_alpha < 255:
             fade_in_alpha += 3
         spacing = WIDTH//4
+
         for i in range(3):
             x = spacing*(i+1) - character_imgs[i].get_width()//2
             y = HEIGHT//4
@@ -124,6 +125,7 @@ def intro_sequence():
             screen.blit(character_imgs[i], (x, y))
             name_surf = font.render(character_names[i], True, "white")
             screen.blit(name_surf, (x + character_imgs[i].get_width()//2 - name_surf.get_width()//2, y + character_imgs[i].get_height() + 10))
+            
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()

@@ -38,7 +38,7 @@ class Enemy(pygame.sprite.Sprite): #SID
         # Combat variables
         self.health = 100
         self.max_health = 100
-        self.attack_damage = 5  
+        self.attack_damage = 20
         self.attack_cooldown = 2500  
         self.last_attack_time = 0
         self.is_dead = False
@@ -224,7 +224,6 @@ boss_animation_config = {
     'running': {'file': 'Sprite_Img/boss_run.png', 'frames': 8, 'width': 128, 'height': 128},
     'jump': {'file': 'Sprite_Img/boss_jump.png', 'frames': 9, 'width': 128, 'height': 128}
 }
-
 def load_boss_animations(scale=2):
     boss_animations = {}
     sprite_img_dir = os.path.join(parent_directory, 'PlayerMovementPhysics' )
@@ -249,7 +248,6 @@ def load_boss_animations(scale=2):
             boss_animations[animation_name] = [placeholder] * config['frames']
     
     return boss_animations
-
 class BossAnimator: #SID
     def __init__(self, animations):
         self.animations = animations
@@ -292,9 +290,6 @@ class BossAnimator: #SID
         if not self.facing_right:  # Face left by default (negative x)
             frame = pygame.transform.flip(frame, True, False)
         return frame
-
-
-    
 class Fireball(pygame.sprite.Sprite): #SID
     def __init__(self, x, y, target_x, fireball_frames, blocks, block_width, block_height):
         super().__init__()
@@ -341,7 +336,6 @@ class Fireball(pygame.sprite.Sprite): #SID
     
     def draw(self, surf, camera_x):
         surf.blit(self.image, self.rect.move(camera_x, 0))
-
 class Boss(pygame.sprite.Sprite): #SID
     def __init__(self, x, y, animations, blocks, block_width, block_height, world_width):
         super().__init__()
@@ -395,7 +389,6 @@ class Boss(pygame.sprite.Sprite): #SID
                     ground_y = min(ground_y, block["rect"].top)
         self.rect.bottom = ground_y - 1
 
-
     def check_collision(self, distancex, distancey):
         
         temp_rect = self.rect.copy()
@@ -414,8 +407,7 @@ class Boss(pygame.sprite.Sprite): #SID
             if self.health <= 0:
                 self.health = 0
                 self.is_dead = True
-                self.animator.set_animation('dead')
-               
+                self.animator.set_animation('dead')  
 
     def attack_player(self, player):  # Unchanged
         current_time = pygame.time.get_ticks()
@@ -547,8 +539,20 @@ class Playeronworld(Player): #IMRAN
         self.last_step_time = 0
         self.current_health = 100
         self.maximum_health = 100
+        heart_raw = pygame.image.load("Map\\UI+LOGO\\health_heart.png").convert_alpha()
+        target_size = 16
+        scale_ratio = target_size / heart_raw.get_width()
+        self.heart_image = pygame.transform.scale(
+            heart_raw,
+            (int(heart_raw.get_width() * scale_ratio), int(heart_raw.get_height() * scale_ratio))
+        )
+
+        self.gray_heart = self.heart_image.copy()
+        self.gray_heart.fill((120, 120, 120, 200), special_flags=pygame.BLEND_RGBA_MULT)
+
         self.mask = None
         self.hit_flash = 0
+        
     #======DamageLogic============#   
     def get_damage(self, amount):
         super().get_damage(amount)
@@ -608,7 +612,7 @@ class Playeronworld(Player): #IMRAN
                 if distance <= attack_range:
                     enemy.take_damage(100)  
                     attacked = True
-                    self.health += 10
+                    self.health += 20
                     break  
         
         if boss_group and not attacked:  
@@ -704,30 +708,30 @@ class Playeronworld(Player): #IMRAN
             surf.blit(self.image, self.rect.move(camera_x, 0))
     #============blithealth==================#
     def draw_health_bar(self, surf, camera_x, alpha=255):
-        bar_width = 100
-        bar_height = 6
-        x = self.rect.centerx + camera_x - bar_width//2
-        y = self.rect.top - 15
+        heart_size = self.heart_image.get_width()
+        spacing = 4
+        max_hearts = self.maximum_health // 20
 
-        redback = pygame.Surface((bar_width, bar_height), pygame.SRCALPHA)
-        redback.fill((255, 0, 0, alpha))
-        surf.blit(redback, (x, y))
+        x = self.rect.centerx + camera_x - (max_hearts * (heart_size + spacing)) // 2
+        y = self.rect.top - 20
 
-        green_width = int(bar_width * (self.health/100))
-        if green_width > 0:
-            greenback = pygame.Surface((green_width, bar_height), pygame.SRCALPHA)
-            greenback.fill((0, 255, 0, alpha))
-            surf.blit(greenback, (x, y))
+        hearts_to_draw = self.current_health // 20
+
+        for i in range(max_hearts):
+            if i < hearts_to_draw:
+                surf.blit(self.heart_image, (x + i * (heart_size + spacing), y))
+            else:
+                surf.blit(self.gray_heart, (x + i * (heart_size + spacing), y))
+
 
 # =====WORLDGEN================================================================================================================= #
 class generateworld: #IMRAN
     def __init__(self, gender,pause_callback = None, volume =0.5, ):
         pygame.init()
         self.dimension = 'overworld'
-
         pygame.mixer.init() 
         self.pause_callback = pause_callback
-
+        #spawnlocation#
         self.overworld_spawn_x = 300
         self.overworld_spawn_y = 300
         self.hell_spawn_x = 300  
@@ -739,11 +743,8 @@ class generateworld: #IMRAN
         #===========INIT=============#
         self.background = pygame.image.load("Map\\BACKGROUND\\sforest.png").convert()
         self.background = pygame.transform.scale(self.background, self.screen.get_size())
-        # === UI assets ===
         self.hotbar_image= pygame.image.load("Map\\UI+LOGO\\hotbar_9slots.png").convert_alpha()
-
         self.inventory_bg = pygame.image.load("Map\\UI+LOGO\\inventory.png").convert_alpha()
-
 
         self.show_fullmap = False
         self.fullmap_scale = 0.1  #(will try 0.2, might be too big)
@@ -824,11 +825,10 @@ class generateworld: #IMRAN
         self.highlight = False
         
         self.pause_callback = pause_callback
-        self.health_display_time = 3000  # 3 seconds in ms
-        self.last_health_change = 0      # Timer start (0 means no recent damage)
-        self.prev_player_health = self.player.current_health if self.player else 100  # Track previous health
+        self.health_display_time = 3000  #
+        self.last_health_change = 0      #
+        self.prev_player_health = self.player.current_health if self.player else 100  
 
-        self.current_scene = 0  
         self.previous_scene = 0
         self.highlight = False
         
@@ -850,8 +850,6 @@ class generateworld: #IMRAN
         self.hotbar_slot_size = 40
         self.hotbar_padding = 6
         self.font = pygame.font.SysFont(None, 20)
-        
-
         #==========================Inventory n Hotbar Dragging=======================#
         self.dragging_item = None
         self.dragging_item_image = None
@@ -865,10 +863,8 @@ class generateworld: #IMRAN
         self.inventory_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         
         self.inventory_slots = [None] * (self.inventory_cols * self.inventory_rows)
-
         self.dragging_item = None
         self.dragging_slot = None
-  
         self.selected_index = 2 
 
         # ==== NEW ENEMY SYSTEM ==== #
@@ -886,17 +882,14 @@ class generateworld: #IMRAN
         self.crafting_font = pygame.font.SysFont(None, 32)
         self.crafting_scroll = 0
         self.crafting_visible = 6
-        
-        #====Timerforfun===========#
+
+        #====Timer===========#
         self.start_time = pygame.time.get_ticks()
-
-
         #=======Music=============#
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")   
         pygame.mixer.music.play(-1)
         self.volume =volume
         self.current_music = "overworld"
-                # ===== Sound Effects ===== #
         self.sounds = {
             "footstep": pygame.mixer.Sound("Map\\Sounds\\footstep_grass.mp3"),
             "jump": pygame.mixer.Sound("Map\\Sounds\\jump.mp3"),
@@ -912,11 +905,12 @@ class generateworld: #IMRAN
             #"heal": pygame.mixer.Sound("Map\\Sounds\\heal.mp3"),
         }
             # ===== Sound Volume Control ===== #
-        
         self.sfx_volume = 0.5  
         for s in self.sounds.values():
             s.set_volume(self.sfx_volume)
+
         self.init_player(gender)
+    
     def handle_player_death(self):
         if self.player.health <= 0:
             self.player.health = self.player.maximum_health
@@ -928,17 +922,16 @@ class generateworld: #IMRAN
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load("Map\\MusicMan\\hell_boss.mp3")
                 pygame.mixer.music.play(-1)
-            else:  # overworld
+            else: 
                 self.player.rect.topleft = (self.overworld_spawn_x, self.overworld_spawn_y)
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load("Map\\MusicMan\\worldbackground.mp3")
                 pygame.mixer.music.play(-1)
 
-
     def loading_screen(self, text="Loading Hell...", duration=4.0):
-        self.screen.fill((0, 0, 0))  # black background
+        self.screen.fill((0, 0, 0))  #
         font = pygame.font.SysFont("Arial", 48)
-        label = font.render(text, True, (255, 100, 0))  # fiery orange
+        label = font.render(text, True, (255, 100, 0)) 
         label_rect = label.get_rect(center=(self.screen.get_width()//2, self.screen.get_height()//2))
         self.screen.blit(label, label_rect)
         pygame.display.update()
@@ -948,6 +941,7 @@ class generateworld: #IMRAN
         pygame.mixer.music.load("Map\MusicMan\worldbackground.mp3")
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play(-1)
+    
     def update_music(self):
         """Update background music based on dimension and current scene."""
         current_time = pygame.time.get_ticks()
@@ -968,11 +962,9 @@ class generateworld: #IMRAN
                 pygame.mixer.music.set_volume(self.volume)
                 pygame.mixer.music.play(-1)
                 self.current_music = "overworld"
-               
-
+    
     # ==== ENEMY INITIALIZATION ==== #
     def init_enemy_system(self):
-        """Initialize enemy sprite sheet and enemy groups"""
         try:
             enemy_sheet_img = pygame.image.load("PlayerMovementPhysics/Sprite_Img/enemy_sprite.png").convert_alpha()
         except pygame.error:
@@ -986,14 +978,12 @@ class generateworld: #IMRAN
             self.spawn_enemies()
     
     def spawn_enemies(self):
-        """Spawn enemies in scenes 2 and 3 only"""
         self.enemy_group.empty() 
         screen_width = self.screen.get_width()
         
         if len(self.blocks) == 0:
             return
         
-
         for scene in [1, 2]: 
             num_enemies = random.randint(2, 3) 
             
@@ -1015,7 +1005,6 @@ class generateworld: #IMRAN
                 enemy = Enemy(x, y, self.enemy_sheet, 2, self.blocks, 
                              self.block_width, self.block_height)
                 self.enemy_group.add(enemy)
-
     #===== BOSS INITIALIZE =====# 
     def init_boss_system(self, hell_mode=False): #SID
         self.boss_animations = load_boss_animations(scale=2)
@@ -1064,8 +1053,8 @@ class generateworld: #IMRAN
             action_sprite_width, action_sprite_height = 232, 182
             action_scale_factor = 0.3
         base_animation_list = load_base_animations(base_sprite_image)
-        action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image, 
-                                                     action_sprite_width, action_sprite_height, action_scale_factor)
+        action_animation_list = load_action_animations(attack_sprite_image, mine_sprite_image, action_sprite_width, action_sprite_height, action_scale_factor)
+
         world_width = (pygame.display.get_surface().get_width() * self.number_levels)
         self.player = Playeronworld(base_animation_list, action_animation_list, gender, self.blocks, self.block_width, self.block_height, world_width,self)
         self.player.gender = gender 
@@ -1330,7 +1319,7 @@ class generateworld: #IMRAN
             if item == block_type:
                 self.hotbar_slots[i] = (item, count + 1)
                 return
-        # Add to empty slot
+        
         for i, (item, count) in enumerate(self.hotbar_slots):
             if item is None:
                 self.hotbar_slots[i] = (block_type, 1)
@@ -1523,7 +1512,7 @@ class generateworld: #IMRAN
             self.dragging_slot = None
             self.dragging_row = None
             self.dragging_col = None
-    # ===== Hotbar Sync =====
+    
     def update_hotbar(self):
         for i in range(9):  # first row of inventory
             slot = self.inventory_slots[i]
