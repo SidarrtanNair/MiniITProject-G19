@@ -352,8 +352,8 @@ class Boss(pygame.sprite.Sprite): #SID
         self.jump_speed = -18  
         self.on_ground = False  
 
-        self.health = 500
-        self.max_health = 500
+        self.health = 1000
+        self.max_health = 1000
         self.attack_damage = 15
         self.attack_cooldown = 3000  # 3s between attacks
         self.last_attack = 0
@@ -465,13 +465,12 @@ class Boss(pygame.sprite.Sprite): #SID
             offset_x = player.rect.x - self.rect.x
             offset_y = player.rect.y - self.rect.y
             if (hasattr(player, 'mask') and player.mask and 
-                self.current_mask.overlap(player.mask, (offset_x, offset_y))):
-                # Collision: Force melee state
+                self.current_mask.overlap(player.mask, (offset_x, offset_y))):  
                 if self.state != 'melee':
                     self.state = 'melee'
                     self.animator.set_animation('attack2')
                     self.last_state_change = current_time
-                self.attack_player(player)  # Deal damage
+                self.attack_player(player)  
             
             anim_finished = self.animator.update()
             self.image = self.animator.get_current_image()
