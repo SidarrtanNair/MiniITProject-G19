@@ -371,7 +371,8 @@ def play_menu_music():
 def draw_continue():
     global world
     if world:
-        world.play_music()
+        pygame.mixer.music.set_volume(volume)
+        pygame.mixer.music.play(-1)
         state = world.running()
         if state == "menu":
             pygame.mixer.music.stop()
