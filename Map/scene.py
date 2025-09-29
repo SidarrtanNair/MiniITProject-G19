@@ -30,10 +30,10 @@ class Enemy(pygame.sprite.Sprite): #SID
         # Physics variables
         self.vel_y = 0
         self.gravity = 0.8
-        self.jump_speed = -15
+        self.jump_speed = -10
         self.on_ground = False
         self.jump_timer = 0
-        self.jump_cooldown = random.randint(60, 120)
+        self.jump_cooldown = random.randint(0, 240)
         
         # Combat variables
         self.health = 100
@@ -47,7 +47,7 @@ class Enemy(pygame.sprite.Sprite): #SID
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
-        
+        self.sounds = {"enemydie": pygame.mixer.Sound("Map\\Sounds\\enemydie.mp3"), }
         animation_steps = 8
         for animation in range(animation_steps):
             image = sprite_sheet.get_image(animation, 32, 32, scale, (0, 0, 0))
@@ -114,6 +114,8 @@ class Enemy(pygame.sprite.Sprite): #SID
         if self.health <= 0:
             self.health = 0
             self.is_dead = True
+            self.sounds["enemydie"].play()
+            
     
     def can_attack(self):
         current_time = pygame.time.get_ticks()
@@ -304,7 +306,7 @@ class Fireball(pygame.sprite.Sprite): #SID
         self.blocks = blocks
         self.block_width = block_width
         self.block_height = block_height
-        self.damage = 3  # Damage to player on hit
+        self.damage = 5  # Damage to player on hit
     
     def update(self, player):
         # Animate
@@ -379,6 +381,9 @@ class Boss(pygame.sprite.Sprite): #SID
         self.find_ground()
         self.vel_y = 0
         self.on_ground = True
+        self.sounds = {"bossdie": pygame.mixer.Sound("Map\\Sounds\\bossdie.mp3"), 
+                       "bossdiecelebrate": pygame.mixer.Sound("Map\\Sounds\\bossdiecelebrate.mp3")
+                       }
 
     def find_ground(self):
         ground_y = self.rect.y + 500
@@ -408,6 +413,10 @@ class Boss(pygame.sprite.Sprite): #SID
                 self.health = 0
                 self.is_dead = True
                 self.animator.set_animation('dead')  
+                pygame.mixer.music.stop()
+                self.sounds["bossdie"].play()
+                pygame.time.wait(200)
+                self.sounds["bossdiecelebrate"].play()
 
     def attack_player(self, player):  # Unchanged
         current_time = pygame.time.get_ticks()
@@ -904,7 +913,9 @@ class generateworld: #IMRAN
             "craft": pygame.mixer.Sound("Map\\Sounds\\craft.mp3"),
             "inv_open": pygame.mixer.Sound("Map\\Sounds\\inventory_open.mp3"),
             "inv_close": pygame.mixer.Sound("Map\\Sounds\\inventory_close.mp3"),
-            "typing": pygame.mixer.Sound("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3")
+            "typing": pygame.mixer.Sound("Map\\Sounds\\TypeWriter- Sound Effect (Final Cut).mp3"),
+            "enemydie": pygame.mixer.Sound("Map\\Sounds\\enemydie.mp3"),
+            "bossdie" : pygame.mixer.Sound("Map\\Sounds\\bossdie.mp3")
             #"hurt": pygame.mixer.Sound("Map\\Sounds\\player_hurt.mp3"),
             #"heal": pygame.mixer.Sound("Map\\Sounds\\heal.mp3"),
         }
@@ -1626,7 +1637,6 @@ class generateworld: #IMRAN
                                                 self.player.vel_x = 0
                                                 self.player.vel_y = 0
 
-
                                                 # ================= Dialogue sequence =================
                                                 font = pygame.font.SysFont("Consolas", 24)
                                                 line_spacing = 30
@@ -1647,10 +1657,8 @@ class generateworld: #IMRAN
                                                 clock = pygame.time.Clock()
 
                                                 while waiting_for_click:
-                                                    # redraw the world background (simple: just re-blit the background)
                                                     self.screen.blit(self.background, (0, 0))
 
-                                                    # draw dialogue box
                                                     box_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
                                                     box_surf.fill((0, 0, 0, 200))
                                                     pygame.draw.rect(box_surf, (255, 255, 255), box_surf.get_rect(), 2)
@@ -2074,10 +2082,18 @@ class generateworld: #IMRAN
     def get_safe_spawn_y(self, x, scene_index):
         screen_width = self.screen.get_width()
         scene_blocks = [b for b in self.blocks if scene_index * screen_width <= b["rect"].x < (scene_index + 1) * screen_width]
-        candidates = [b for b in scene_blocks if b["rect"].left <= x < b["rect"].right]
+        solid_blocks = [b for b in scene_blocks if b["type"] not in ["bush", "tree_log", "tree_stump", "fire_block", "portal_energy_block"]]
+        candidates = [b for b in solid_blocks if b["rect"].left <= x < b["rect"].right]
+        y = self.screen.get_height() - self.block_height
         if candidates:
-            return min(b["rect"].top for b in candidates)
-        return self.screen.get_height() - self.block_height
+            y = min(b["rect"].top for b in candidates)
+        temp_rect = self.player.rect.copy()
+        temp_rect.bottom = y
+        while any(temp_rect.colliderect(b["rect"]) for b in solid_blocks):
+            temp_rect.y -= 1
+        return temp_rect.bottom
+
+
     
 if __name__ == "__main__":
     generateworld().running()
