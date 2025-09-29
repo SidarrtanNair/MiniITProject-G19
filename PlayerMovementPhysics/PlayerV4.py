@@ -291,7 +291,7 @@ def gender_selection_screen():
     confirmed_gender = None
 
     while selecting:
-        screen.blit(background, (0, 0))
+        screen.blit(background  , (0, 0))
 
         title_text = font.render("Select Your Character Gender", True, 'white')
         screen.blit(title_text, (screen.get_width()//2 - title_text.get_width()//2, 50))
